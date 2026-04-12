@@ -315,8 +315,8 @@ else:
               {price_html}
             </div>
             <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
-              <input type="number" value="{qty}" min="1" max="99" style="width:50px;height:36px;text-align:center;border-radius:8px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-secondary);font-size:14px;" onchange="updateQuantity({h['id']}, this.value)">
-              <button onclick="deleteHolding({h['id']})" style="background:none;border:none;color:var(--color-text-tertiary);font-size:16px;cursor:pointer;padding:4px;">🗑</button>
+              <input type="number" value="{qty}" min="1" max="99" style="width:50px;height:36px;text-align:center;border-radius:8px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-secondary);font-size:14px;">
+              <button style="background:none;border:none;color:var(--color-text-tertiary);font-size:16px;cursor:pointer;padding:4px;">🗑</button>
             </div>
           </div>
           <div class="box-footer">
@@ -324,6 +324,21 @@ else:
           </div>
         </div>
         """, unsafe_allow_html=True)
+
+        # 数量変更 & 削除
+        col_qty, col_del = st.columns([3, 1])
+        with col_qty:
+            new_qty = st.number_input(
+                "数量", min_value=1, max_value=99, value=qty,
+                key=f"qty_{h['id']}", label_visibility="collapsed"
+            )
+            if new_qty != qty:
+                db.update_qty(h["id"], new_qty)
+                st.rerun()
+        with col_del:
+            if st.button("🗑", key=f"del_{h['id']}", help="削除"):
+                db.delete_holding(h["id"])
+                st.rerun()
 
     # ─── BOX追加ボタン（リストの下）────────────────────────────
     st.markdown("<div style='margin-top:6px'></div>", unsafe_allow_html=True)
