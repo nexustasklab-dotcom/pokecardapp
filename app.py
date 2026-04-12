@@ -40,11 +40,19 @@ div[data-testid="column"] .stButton > button { min-height: 36px; }
 div[data-testid="stHorizontalBlock"] {
     flex-wrap: nowrap !important;
     gap: 4px !important;
+    width: 100% !important;
+    overflow: hidden !important;
 }
 div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
     flex: 1 1 0 !important;
     min-width: 0 !important;
-    width: auto !important;
+    width: 0 !important;
+}
+/* ボタンも親幅に収まるよう強制 */
+div[data-testid="stHorizontalBlock"] > div[data-testid="column"] .stButton > button {
+    width: 100% !important;
+    min-width: 0 !important;
+    padding: 0.25rem 0 !important;
 }
 
 /* 右側コントロール列のボタン間隔を詰める */
