@@ -11,21 +11,27 @@ st.markdown("""
 <style>
 html, body {
     overflow-x: hidden !important;
+    max-width: 100vw !important;
 }
+* { box-sizing: border-box !important; }
+
 [data-testid="stAppViewContainer"] {
     background: #fafafa;
     overflow-x: hidden !important;
+    max-width: 100vw !important;
 }
 [data-testid="stMainBlockContainer"],
 .main .block-container,
 .block-container {
     max-width: 430px !important;
+    width: 100% !important;
     padding-top: 0.5rem !important;
     padding-bottom: 1rem !important;
     padding-left: 8px !important;
     padding-right: 8px !important;
     margin-left: auto !important;
     margin-right: auto !important;
+    overflow-x: hidden !important;
 }
 #MainMenu { visibility: hidden; }
 header { visibility: hidden; height: 0 !important; }
@@ -47,12 +53,26 @@ img { max-width: 100% !important; height: auto; }
 }
 
 /* モバイルでも columns を縦積みにせず横並び維持 */
-/* flex-basis や width には触らない（Streamlitの比率を壊さないため） */
 div[data-testid="stHorizontalBlock"] {
     flex-wrap: nowrap !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
 }
 div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
     min-width: 0 !important;
+    overflow: hidden !important;
+}
+
+/* expander のスタイル調整 */
+div[data-testid="stExpander"] {
+    border: none !important;
+    margin-top: -4px !important;
+    margin-bottom: 8px !important;
+}
+div[data-testid="stExpander"] summary {
+    font-size: 12px !important;
+    padding: 4px 8px !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -310,18 +330,21 @@ if holdings:
 
         st.markdown(card_html, unsafe_allow_html=True)
 
-        # コントロール: ＋ / － / 🗑 を均等3分割
-        c_plus, c_minus, c_del = st.columns(3)
-        with c_plus:
-            if st.button("＋ 追加", key=f"plus_{h['id']}", use_container_width=True):
-                db.update_qty_delta(h["id"], 1)
+        # 編集はアコーディオン展開（モバイルでも横幅問題が起きない）
+        with st.expander("⚙ 編集", expanded=False):
+            new_qty = st.number_input(
+                "数量",
+                min_value=1,
+                max_value=99,
+                value=qty,
+                step=1,
+                key=f"qty_input_{h['id']}"
+            )
+            if new_qty != qty:
+                db.update_qty(h["id"], new_qty)
                 st.rerun()
-        with c_minus:
-            if st.button("－ 減らす", key=f"minus_{h['id']}", use_container_width=True):
-                db.update_qty_delta(h["id"], -1)
-                st.rerun()
-        with c_del:
-            if st.button("🗑 削除", key=f"del_{h['id']}", use_container_width=True):
+
+            if st.button("🗑 このBOXを削除", key=f"del_{h['id']}", use_container_width=True):
                 db.delete_holding(h["id"])
                 st.rerun()
 
@@ -334,32 +357,38 @@ if st.session_state.adding:
 
     if st.session_state.selected_pack is None:
         st.markdown("**パックを選択**")
-        search = st.text_input("検索", placeholder="パック名で検索")
+        search = st.text_input("検索", placeholder="パック名で検索", label_visibility="collapsed")
 
         filtered = [p for p in PACKS if not search or search.lower() in p["name"].lower()][:20]
 
         for pack in filtered:
-            col_img, col_info, col_btn = st.columns([1, 4, 1])
-            with col_img:
-                st.image(pack["img"], width=52)
-            with col_info:
-                st.markdown(f"**{pack['name']}**  \n{pack['released_at']}")
-            with col_btn:
-                if st.button("選択", key=f"select_{pack['id']}"):
-                    st.session_state.selected_pack = pack
-                    st.rerun()
+            # 画像 + 名前 + ボタンを1つのHTMLカードに
+            pack_img = proxied_img(pack["img"]) if not is_broken_img(pack["img"]) else pack["img"]
+            pack_card = (
+                '<div style="display:flex;gap:10px;align-items:center;background:white;border:1px solid #e5e7eb;border-radius:10px;padding:8px;margin:4px 0;">'
+                f'<img src="{pack_img}" style="width:48px;height:48px;border-radius:6px;object-fit:cover;flex-shrink:0;">'
+                f'<div style="flex:1;min-width:0;"><div style="font-size:12px;font-weight:600;line-height:1.3;color:#111827;">{pack["name"]}</div><div style="font-size:10px;color:#6b7280;margin-top:2px;">{pack["released_at"]}</div></div>'
+                '</div>'
+            )
+            st.markdown(pack_card, unsafe_allow_html=True)
+            if st.button(f"このパックを選択", key=f"select_{pack['id']}", use_container_width=True):
+                st.session_state.selected_pack = pack
+                st.rerun()
 
-        if st.button("キャンセル"):
+        if st.button("キャンセル", use_container_width=True):
             st.session_state.adding = False
             st.rerun()
 
     else:
         pack = st.session_state.selected_pack
-        col_img, col_info = st.columns([1, 4])
-        with col_img:
-            st.image(pack["img"], width=52)
-        with col_info:
-            st.markdown(f"**{pack['name']}**  \n{pack['released_at']}")
+        pack_img = proxied_img(pack["img"]) if not is_broken_img(pack["img"]) else pack["img"]
+        pack_html = (
+            '<div style="display:flex;gap:12px;align-items:center;background:white;border:1px solid #e5e7eb;border-radius:10px;padding:10px;margin:8px 0;">'
+            f'<img src="{pack_img}" style="width:56px;height:56px;border-radius:8px;object-fit:cover;flex-shrink:0;">'
+            f'<div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:700;line-height:1.3;">{pack["name"]}</div><div style="font-size:10px;color:#6b7280;margin-top:2px;">{pack["released_at"]}</div></div>'
+            '</div>'
+        )
+        st.markdown(pack_html, unsafe_allow_html=True)
 
         shrink_fixed = pack.get("shrink_fixed")
 
