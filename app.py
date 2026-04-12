@@ -6,7 +6,6 @@ from master_data import PACKS
 
 st.set_page_config(page_title="PokeCard Asset", layout="centered", initial_sidebar_state="collapsed")
 
-# iPhone 15 Plus 幅(430px)準拠CSS
 st.markdown("""
 <style>
 [data-testid="stMainBlockContainer"],
@@ -21,9 +20,7 @@ section.main > div.block-container,
     margin-left: auto !important;
     margin-right: auto !important;
 }
-[data-testid="stAppViewContainer"] {
-    background: #fafafa;
-}
+[data-testid="stAppViewContainer"] { background: #fafafa; }
 [data-testid="stAppViewContainer"] > .main,
 section.main {
     max-width: 430px !important;
@@ -36,20 +33,11 @@ footer { visibility: hidden; }
 [data-testid="stToolbar"] { display: none; }
 [data-testid="stHeader"] { display: none; }
 
-.stButton > button {
-    padding: 0.25rem 0.5rem;
-}
-div[data-testid="column"] .stButton > button {
-    min-height: 32px;
-}
-/* カード間の余白を詰める */
-div[data-testid="stVerticalBlock"] > div[data-testid="stVerticalBlockBorderWrapper"] {
-    gap: 0 !important;
-}
+.stButton > button { padding: 0.25rem 0.4rem; }
+div[data-testid="column"] .stButton > button { min-height: 36px; }
 </style>
 """, unsafe_allow_html=True)
 
-# 初期化
 db.init_db()
 if "updating" not in st.session_state:
     st.session_state.updating = False
@@ -58,7 +46,6 @@ if "adding" not in st.session_state:
 if "fixing_images" not in st.session_state:
     st.session_state.fixing_images = False
 
-# ヘッダー
 st.markdown("<div style='background:#E63946;color:white;padding:8px;text-align:center;font-weight:600;border-radius:8px;margin-bottom:8px;'>PokeCard Asset</div>", unsafe_allow_html=True)
 
 
@@ -81,19 +68,17 @@ def proxied_img(url):
 
 
 def split_pack_name(pack_name):
-    """パック名を「種別」と「タイトル」に分割して2行表示用に返す"""
     if "「" in pack_name and "」" in pack_name:
         prefix = pack_name.split("「")[0].strip()
         main_name = pack_name.split("「")[1].split("」")[0]
         return prefix, main_name
-    # 「拡張パック XXX」のようなスペース区切り
     parts = pack_name.split(" ", 1)
     if len(parts) == 2:
         return parts[0], parts[1]
     return "", pack_name
 
 
-# 最終更新日時取得
+# 最終更新日時
 holdings_for_meta = db.get_all_holdings()
 last_updated = None
 for h in holdings_for_meta:
@@ -120,7 +105,6 @@ def estimate_mori(h):
         return mori if mori else max(snkr - 3000, 0)
 
 
-# ボタン
 col1, col2 = st.columns([4, 1])
 with col1:
     if st.button(update_btn_label, type="primary", use_container_width=True, key="update_btn"):
@@ -158,7 +142,7 @@ if st.session_state.fixing_images:
     st.success(f"✅ {success}/{len(targets)}件取得")
     st.rerun()
 
-# 価格更新処理
+# 価格更新
 if st.session_state.updating:
     holdings = db.get_all_holdings()
     progress = st.progress(0, text="更新中...")
@@ -193,11 +177,9 @@ first_snap = db.get_first_snapshot()
 
 prev_diff_snkr = 0
 first_diff_snkr = 0
-
 if len(snapshots) >= 2:
     prev_snkr = snapshots[1].get("snkrdunk_total", 0) or 0
     prev_diff_snkr = total_snkr - prev_snkr
-
 if first_snap:
     first_snkr = first_snap.get("snkrdunk_total", 0) or 0
     first_diff_snkr = total_snkr - first_snkr
@@ -217,39 +199,27 @@ def diff_str(amount):
 
 def diff_color(amount):
     if amount > 0:
-        return "#2563eb"  # 青
+        return "#2563eb"
     elif amount < 0:
-        return "#dc2626"  # 赤
+        return "#dc2626"
     return "#6b7280"
 
 
-# サマリー表示（縦圧縮版）
-st.markdown(f"""
-<div style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:white;padding:12px 14px;border-radius:14px;margin:8px 0;">
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-    <div>
-      <div style="font-size:11px;opacity:0.85;">総資産</div>
-      <div style="font-size:22px;font-weight:700;line-height:1.2;">{fmt(total_snkr)}</div>
-    </div>
-    <div>
-      <div style="font-size:11px;opacity:0.85;">買取金額</div>
-      <div style="font-size:22px;font-weight:700;line-height:1.2;">{fmt(total_mori)}</div>
-    </div>
-  </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">
-    <div style="background:white;padding:6px 8px;border-radius:6px;">
-      <div style="font-size:9px;color:#6b7280;">前回比</div>
-      <div style="font-size:13px;font-weight:700;color:{diff_color(prev_diff_snkr)};">{diff_str(prev_diff_snkr)}</div>
-    </div>
-    <div style="background:white;padding:6px 8px;border-radius:6px;">
-      <div style="font-size:9px;color:#6b7280;">累計増減</div>
-      <div style="font-size:13px;font-weight:700;color:{diff_color(first_diff_snkr)};">{diff_str(first_diff_snkr)}</div>
-    </div>
-  </div>
-</div>
-""", unsafe_allow_html=True)
+# サマリー（1行に圧縮：改行を入れない）
+summary_html = (
+    '<div style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:white;padding:12px 14px;border-radius:14px;margin:8px 0;">'
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">'
+    f'<div><div style="font-size:11px;opacity:0.85;">総資産</div><div style="font-size:22px;font-weight:700;line-height:1.2;">{fmt(total_snkr)}</div></div>'
+    f'<div><div style="font-size:11px;opacity:0.85;">買取金額</div><div style="font-size:22px;font-weight:700;line-height:1.2;">{fmt(total_mori)}</div></div>'
+    '</div>'
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">'
+    f'<div style="background:white;padding:6px 8px;border-radius:6px;"><div style="font-size:9px;color:#6b7280;">前回比</div><div style="font-size:13px;font-weight:700;color:{diff_color(prev_diff_snkr)};">{diff_str(prev_diff_snkr)}</div></div>'
+    f'<div style="background:white;padding:6px 8px;border-radius:6px;"><div style="font-size:9px;color:#6b7280;">累計増減</div><div style="font-size:13px;font-weight:700;color:{diff_color(first_diff_snkr)};">{diff_str(first_diff_snkr)}</div></div>'
+    '</div>'
+    '</div>'
+)
+st.markdown(summary_html, unsafe_allow_html=True)
 
-# BOX一覧
 st.markdown("<div style='margin:6px 4px 4px;font-size:11px;color:#666;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;'>保有BOX一覧</div>", unsafe_allow_html=True)
 
 if holdings:
@@ -272,80 +242,73 @@ if holdings:
 
         prefix, main_name = split_pack_name(h["pack_name"])
 
-        mori_display = fmt(mori_price) if mori_price else "ー"
-        mori_subtotal_display = fmt(mori_price * qty) if mori_price else "ー"
-        mori_estimated_mark = "<span style='font-size:9px;color:#9ca3af;margin-left:2px;'>(仮)</span>" if (mori_is_estimated and mori_price) else ""
+        mori_unit = fmt(mori_price) if mori_price else "ー"
+        mori_sub = fmt(mori_price * qty) if mori_price else "ー"
+        mark = '<span style="font-size:9px;color:#9ca3af;">(仮)</span>' if (mori_is_estimated and mori_price) else ""
 
-        # 画像
         raw_img = h.get("img_url") or ""
         if is_broken_img(raw_img):
             img_src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><rect width='64' height='64' fill='%23f3f4f6'/><text x='50%25' y='50%25' text-anchor='middle' dy='.3em' font-size='9' fill='%239ca3af'>no img</text></svg>"
         else:
             img_src = proxied_img(raw_img)
 
-        # パック名表示（2行）
+        # 名前部分（インラインHTML、改行なし）
         if prefix:
-            name_html = f"""
-              <div style="font-size:10px;color:#6b7280;line-height:1.2;">{prefix}</div>
-              <div style="font-size:13px;font-weight:700;line-height:1.25;color:#111827;">{main_name}</div>
-            """
+            name_html = f'<div style="font-size:10px;color:#6b7280;line-height:1.2;">{prefix}</div><div style="font-size:13px;font-weight:700;line-height:1.25;color:#111827;">{main_name}</div>'
         else:
-            name_html = f"""
-              <div style="font-size:13px;font-weight:700;line-height:1.25;color:#111827;">{main_name}</div>
-            """
+            name_html = f'<div style="font-size:13px;font-weight:700;line-height:1.25;color:#111827;">{main_name}</div>'
 
-        # BOXカード本体
-        st.markdown(f"""
-        <div style="background:white;border:1px solid #e5e7eb;border-radius:14px;padding:12px;margin:6px 0;box-shadow:0 1px 2px rgba(0,0,0,0.03);">
-          <div style="display:flex;gap:12px;align-items:center;">
-            <img src="{img_src}" style="width:64px;height:64px;border-radius:10px;object-fit:cover;background:#f3f4f6;flex-shrink:0;">
-            <div style="flex:1;min-width:0;">
-              {name_html}
-              <span style="display:inline-block;margin-top:4px;font-size:10px;background:{'#dcfce7;color:#166534' if shrink else '#fff7ed;color:#c2410c'};padding:2px 8px;border-radius:12px;">シュリンク{'有' if shrink else '無'}</span>
-            </div>
-          </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:8px;border-top:1px solid #f3f4f6;">
-            <span style="font-size:10px;color:#9ca3af;">単価</span>
-            <div style="display:flex;gap:10px;align-items:baseline;">
-              <span style="font-size:15px;font-weight:700;color:#111827;">{fmt(snkr_price)}</span>
-              <span style="font-size:13px;font-weight:600;color:#6b7280;">/ {mori_display}{mori_estimated_mark}</span>
-            </div>
-          </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
-            <span style="font-size:10px;color:#9ca3af;">小計（× {qty}）</span>
-            <div style="display:flex;gap:10px;align-items:baseline;">
-              <span style="font-size:17px;font-weight:800;color:#dc2626;">{fmt(snkr_price * qty)}</span>
-              <span style="font-size:13px;font-weight:600;color:#6b7280;">/ {mori_subtotal_display}{mori_estimated_mark}</span>
-            </div>
-          </div>
-        </div>
-        """, unsafe_allow_html=True)
+        shrink_badge = f'<span style="display:inline-block;margin-top:4px;font-size:10px;background:{"#dcfce7;color:#166534" if shrink else "#fff7ed;color:#c2410c"};padding:2px 8px;border-radius:12px;">シュリンク{"有" if shrink else "無"}</span>'
 
-        # 数量調整 ± + 削除（カードのすぐ下）
-        c_minus, c_qty, c_plus, c_spacer, c_del = st.columns([1, 1, 1, 3, 1])
-        with c_minus:
-            if st.button("－", key=f"minus_{h['id']}", use_container_width=True):
-                db.update_qty_delta(h["id"], -1)
-                st.rerun()
-        with c_qty:
-            st.markdown(
-                f"<div style='text-align:center;font-weight:700;font-size:16px;line-height:32px;'>{qty}</div>",
-                unsafe_allow_html=True
-            )
-        with c_plus:
+        # 価格テーブル: 市場価格 / 買取金額 を縦カラムで揃える
+        # ヘッダー行 + 単価行 + 小計行
+        price_table = (
+            '<div style="margin-top:10px;padding-top:8px;border-top:1px solid #f3f4f6;">'
+            '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;align-items:baseline;">'
+            '<div></div>'
+            '<div style="font-size:9px;color:#9ca3af;text-align:right;">市場価格</div>'
+            '<div style="font-size:9px;color:#9ca3af;text-align:right;">買取金額</div>'
+
+            '<div style="font-size:10px;color:#6b7280;">単価</div>'
+            f'<div style="font-size:14px;font-weight:700;color:#111827;text-align:right;">{fmt(snkr_price)}</div>'
+            f'<div style="font-size:14px;font-weight:700;color:#111827;text-align:right;">{mori_unit}{mark}</div>'
+
+            f'<div style="font-size:10px;color:#6b7280;">小計（×{qty}）</div>'
+            f'<div style="font-size:17px;font-weight:800;color:#dc2626;text-align:right;">{fmt(snkr_price * qty)}</div>'
+            f'<div style="font-size:15px;font-weight:700;color:#dc2626;text-align:right;">{mori_sub}{mark}</div>'
+            '</div>'
+            '</div>'
+        )
+
+        # カードHTML（全部1行に連結、改行なし）
+        card_html = (
+            '<div style="background:white;border:1px solid #e5e7eb;border-radius:14px;padding:12px;margin:6px 0;box-shadow:0 1px 2px rgba(0,0,0,0.03);">'
+            '<div style="display:flex;gap:12px;align-items:center;">'
+            f'<img src="{img_src}" style="width:64px;height:64px;border-radius:10px;object-fit:cover;background:#f3f4f6;flex-shrink:0;">'
+            f'<div style="flex:1;min-width:0;">{name_html}{shrink_badge}</div>'
+            '</div>'
+            f'{price_table}'
+            '</div>'
+        )
+
+        # カード本体 + 右サイドにコントロール
+        col_card, col_ctrl = st.columns([5, 1])
+        with col_card:
+            st.markdown(card_html, unsafe_allow_html=True)
+        with col_ctrl:
             if st.button("＋", key=f"plus_{h['id']}", use_container_width=True):
                 db.update_qty_delta(h["id"], 1)
                 st.rerun()
-        with c_del:
+            if st.button("－", key=f"minus_{h['id']}", use_container_width=True):
+                db.update_qty_delta(h["id"], -1)
+                st.rerun()
             if st.button("🗑", key=f"del_{h['id']}", use_container_width=True, help="削除"):
                 db.delete_holding(h["id"])
                 st.rerun()
 
-# BOX追加ボタン
 if st.button("＋ BOXを追加する", use_container_width=True, key="add_btn"):
     st.session_state.adding = True
 
-# BOX追加フロー
 if st.session_state.adding:
     if "selected_pack" not in st.session_state:
         st.session_state.selected_pack = None
