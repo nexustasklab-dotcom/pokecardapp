@@ -111,7 +111,7 @@ if holdings and any(h["updated_at"] for h in holdings):
 
 # ─── 更新ボタン（最上部） ──────────────────────────────────────────────
 label = f"最新相場に更新（最終: {last_updated}）" if last_updated else "最新相場に更新"
-if st.button(label, type="primary", use_container_width=True):
+if st.button(label, type="primary", use_container_width=True, key="update_button_top"):
     st.session_state.updating = True
 
 if st.session_state.updating:
