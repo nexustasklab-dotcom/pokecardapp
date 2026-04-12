@@ -42,10 +42,9 @@ div.stButton > button {
 .badge-shrink { background:#dcfce7; color:#166534; border:1px solid #bbf7d0; }
 .badge-noshrink { background:#fff7ed; color:#c2410c; border:1px solid #fed7aa; }
 .price-block { font-size: 11px; }
-.price-row { display:flex; align-items:center; gap:4px; margin-bottom:2px; }
-.price-val { font-size:12.5px; font-weight:700; color:#111; }
+.price-val { font-size:12.5px; font-weight:700; color:#111; text-align:center; }
 .price-label { font-size:10px; color:#6b7280; }
-.price-na { font-size:12.5px; color:#9ca3af; }
+.price-na { font-size:12.5px; color:#9ca3af; text-align:center; }
 .box-footer { background:#f9fafb; border-top:1px solid #e5e7eb; padding:5px 12px; display:flex; justify-content:space-between; align-items:center; }
 .footer-label { font-size:10.5px; color:#6b7280; }
 .footer-val { font-size:12px; font-weight:600; color:#111; }
@@ -110,16 +109,38 @@ if holdings and any(h["updated_at"] for h in holdings):
     last_updated = max(times)[:16] if times else ""
 
 
+# ─── 更新ボタン（最上部） ──────────────────────────────────────────────
+label = f"最新相場に更新（最終: {last_updated}）" if last_updated else "最新相場に更新"
+if st.button(label, type="primary", use_container_width=True):
+    st.session_state.updating = True
+
+if st.session_state.updating:
+    holdings_fresh = db.get_all_holdings()
+    progress = st.progress(0, text="価格を取得中...")
+    for i, h in enumerate(holdings_fresh):
+        prices = scraper.fetch_prices(h["snkrdunk_id"], h["morimori_url"] if h["shrink"] else None)
+        db.update_prices(h["id"], prices["snkrdunk"], prices["morimori"])
+        progress.progress((i + 1) / max(len(holdings_fresh), 1), text=f"{h['pack_name']} を更新中...")
+
+    # 更新後の合計でスナップショット保存
+    updated = db.get_all_holdings()
+    t_s = sum((h["snkrdunk_price"] or 0) * h["qty"] for h in updated)
+    t_m = sum((h["morimori_price"] or 0) * h["qty"] for h in updated if h["shrink"])
+    db.save_snapshot(t_s, t_m)
+    st.session_state.updating = False
+    st.rerun()
+
+
 # ─── UI: サマリーエリア ────────────────────────────────────────────
 st.markdown(f"""
 <div class="summary-wrap">
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px;">
     <div>
-      <div class="summary-title">総資産（スニダン相場）</div>
+      <div class="summary-title">総資産</div>
       <div class="summary-val">{fmt(total_snkr)}</div>
     </div>
     <div>
-      <div class="summary-title">総買取（森森現金）</div>
+      <div class="summary-title">買取金額</div>
       <div class="summary-val">{fmt(total_mori)}</div>
     </div>
   </div>
@@ -248,49 +269,61 @@ else:
         subtotal = (snkr_price or 0) * qty
         shrink = bool(h["shrink"])
 
+        # パック名を分割（拡張パック「〇〇」 → 拡張パック + 〇〇）
+        pack_name = h['pack_name']
+        if "「" in pack_name and "」" in pack_name:
+            prefix = pack_name.split("「")[0].strip()  # "拡張パック"
+            main_name = pack_name.split("「")[1].split("」")[0]  # "ニンジャスピナー"
+            name_display = f"{prefix}<br>{main_name}"
+        else:
+            name_display = pack_name
+
         badge = '<span class="badge badge-shrink">シュリンク有</span>' if shrink else '<span class="badge badge-noshrink">シュリンク無</span>'
-        mori_html = f'<div class="price-val">{fmt(mori_price)}</div><div class="price-label">森森買取</div>' if shrink else '<div class="price-na">ー</div><div class="price-label">対象外</div>'
+        
+        # 価格を横並びで表示
+        price_html = f"""
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
+          <div class="price-val">{fmt(snkr_price)}</div>
+          <div class="price-val">{fmt(mori_price) if shrink else "ー"}</div>
+        </div>
+        """
+
+        # 小計も同じレイアウトで（各列の合計を表示）
+        subtotal_snkr = (snkr_price or 0) * qty
+        subtotal_mori = (mori_price or 0) * qty if shrink else 0
+        footer_html = f"""
+        <div style="display:flex;align-items:center;width:100%;">
+          <span class="footer-label" style="width:56px;">小計（× {qty}）</span>
+          <div style="flex:1;"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;width:120px;">
+            <div class="footer-val">{fmt(subtotal_snkr)}</div>
+            <div class="footer-val">{fmt(subtotal_mori) if shrink else "ー"}</div>
+          </div>
+          <div style="width:66px;"></div>
+        </div>
+        """
 
         st.markdown(f"""
         <div class="box-card">
-          <div class="box-card-inner">
-            <img class="box-img" src="{h['img_url']}" onerror="this.src='https://via.placeholder.com/56'">
+          <div style="display:grid;grid-template-columns:56px 1fr 1fr auto;gap:8px;padding:10px;align-items:center;">
+            <img src="{h['img_url']}" style="width:56px;height:56px;border-radius:8px;object-fit:cover;" onerror="this.src='https://via.placeholder.com/56'">
             <div>
-              <div class="box-name">{h['pack_name']}</div>
+              <div class="box-name">{name_display}</div>
               {badge}
             </div>
             <div class="price-block">
-              <div class="price-row">
-                <span>📈</span>
-                <div><div class="price-val">{fmt(snkr_price)}</div><div class="price-label">スニダン相場</div></div>
-              </div>
-              <div class="price-row">
-                <span>💰</span>
-                <div>{mori_html}</div>
-              </div>
+              {price_html}
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+              <input type="number" value="{qty}" min="1" max="99" style="width:50px;height:36px;text-align:center;border-radius:8px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-secondary);font-size:14px;" onchange="updateQuantity({h['id']}, this.value)">
+              <button onclick="deleteHolding({h['id']})" style="background:none;border:none;color:var(--color-text-tertiary);font-size:16px;cursor:pointer;padding:4px;">🗑</button>
             </div>
           </div>
           <div class="box-footer">
-            <span class="footer-label">小計（スニダン × {qty}）</span>
-            <span class="footer-val">{fmt(subtotal)}</span>
+            {footer_html}
           </div>
         </div>
         """, unsafe_allow_html=True)
-
-        # 数量変更 & 削除
-        col_qty, col_del = st.columns([3, 1])
-        with col_qty:
-            new_qty = st.number_input(
-                "数量", min_value=1, max_value=99, value=qty,
-                key=f"qty_{h['id']}", label_visibility="collapsed"
-            )
-            if new_qty != qty:
-                db.update_qty(h["id"], new_qty)
-                st.rerun()
-        with col_del:
-            if st.button("🗑", key=f"del_{h['id']}", help="削除"):
-                db.delete_holding(h["id"])
-                st.rerun()
 
     # ─── BOX追加ボタン（リストの下）────────────────────────────
     st.markdown("<div style='margin-top:6px'></div>", unsafe_allow_html=True)
