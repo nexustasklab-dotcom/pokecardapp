@@ -41,6 +41,18 @@ img { max-width: 100% !important; height: auto; }
 .stButton > button {
     font-size: 13px !important;
     padding: 0.3rem 0.5rem !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* モバイルでも columns を縦積みにせず横並び維持 */
+/* flex-basis や width には触らない（Streamlitの比率を壊さないため） */
+div[data-testid="stHorizontalBlock"] {
+    flex-wrap: nowrap !important;
+}
+div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+    min-width: 0 !important;
 }
 </style>
 """, unsafe_allow_html=True)
