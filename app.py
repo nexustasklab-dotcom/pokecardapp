@@ -47,13 +47,13 @@ if st.session_state.updating:
             prices = scraper.fetch_prices(h["snkrdunk_id"], h.get("morimori_url"))
             db.update_prices(h["id"], prices.get("snkrdunk"), prices.get("morimori"))
         progress.progress((i + 1) / max(len(holdings), 1))
-    
+
     # スナップショット自動保存
     updated = db.get_all_holdings()
     t_s = sum((h.get("snkrdunk_price", 0) or 0) * h["qty"] for h in updated)
     t_m = sum((h.get("morimori_price", 0) or 0) * h["qty"] for h in updated if h.get("shrink"))
     db.save_snapshot(t_s, t_m)
-    
+
     st.session_state.updating = False
     st.rerun()
 
@@ -63,16 +63,19 @@ total_snkr = sum((h.get("snkrdunk_price", 0) or 0) * h["qty"] for h in holdings)
 total_mori = sum((h.get("morimori_price", 0) or 0) * h["qty"] for h in holdings if h.get("shrink"))
 
 # 前回差・累計増減計算
-snapshots = db.get_snapshots(limit=2)
+snapshots = db.get_snapshots(limit=2)  # 新しい順
+first_snap = db.get_first_snapshot()    # 最古
+
 prev_diff_snkr = 0
 first_diff_snkr = 0
 
 if len(snapshots) >= 2:
-    prev_snkr = snapshots[1].get("snkrdunk_total", 0)
+    # snapshots[0]=最新, snapshots[1]=前回
+    prev_snkr = snapshots[1].get("snkrdunk_total", 0) or 0
     prev_diff_snkr = total_snkr - prev_snkr
 
-if snapshots:
-    first_snkr = snapshots[-1].get("snkrdunk_total", 0)
+if first_snap:
+    first_snkr = first_snap.get("snkrdunk_total", 0) or 0
     first_diff_snkr = total_snkr - first_snkr
 
 def fmt(amount):
@@ -120,7 +123,7 @@ if holdings:
         mori_price = h.get("morimori_price") or 0
         qty = h["qty"]
         shrink = h.get("shrink", False)
-        
+
         # パック名分割
         pack_name = h["pack_name"]
         if "「" in pack_name and "」" in pack_name:
@@ -129,11 +132,11 @@ if holdings:
             display_name = f"{prefix} {main_name}"
         else:
             display_name = pack_name
-        
+
         # BOXカード表示
         with st.container():
             col_main, col_ops = st.columns([5, 1])
-            
+
             with col_main:
                 st.markdown(f"""
                 <div style="background:white;border:0.5px solid #e5e7eb;border-radius:12px;padding:12px;margin:4px 0;">
@@ -159,14 +162,14 @@ if holdings:
                   </div>
                 </div>
                 """, unsafe_allow_html=True)
-            
+
             with col_ops:
                 # 数量変更
                 new_qty = st.number_input("数量", min_value=1, max_value=99, value=qty, key=f"qty_{h['id']}", label_visibility="collapsed")
                 if new_qty != qty:
                     db.update_qty(h["id"], new_qty)
                     st.rerun()
-                
+
                 # 削除ボタン
                 if st.button("🗑", key=f"del_{h['id']}", help="削除"):
                     db.delete_holding(h["id"])
@@ -184,9 +187,9 @@ if st.session_state.adding:
     if st.session_state.selected_pack is None:
         st.markdown("**パックを選択**")
         search = st.text_input("検索", placeholder="パック名で検索")
-        
+
         filtered = [p for p in PACKS if not search or search.lower() in p["name"].lower()][:20]
-        
+
         for pack in filtered:
             col_img, col_info, col_btn = st.columns([1, 4, 1])
             with col_img:
@@ -197,11 +200,11 @@ if st.session_state.adding:
                 if st.button("選択", key=f"select_{pack['id']}"):
                     st.session_state.selected_pack = pack
                     st.rerun()
-        
+
         if st.button("キャンセル"):
             st.session_state.adding = False
             st.rerun()
-    
+
     else:
         # シュリンク選択
         pack = st.session_state.selected_pack
@@ -212,7 +215,7 @@ if st.session_state.adding:
             st.markdown(f"**{pack['name']}**  \n{pack['released_at']}")
 
         shrink_fixed = pack.get("shrink_fixed")
-        
+
         if shrink_fixed is True:
             st.success("📦 シュリンク有で登録")
             has_shrink = True
@@ -231,7 +234,7 @@ if st.session_state.adding:
         with col2:
             if st.button("✅ 追加", type="primary", use_container_width=True):
                 db.add_holding(
-                    pack_id=str(pack["id"]),
+                    pack_id=pack["id"],
                     pack_name=pack["name"],
                     img_url=pack["img"],
                     shrink=has_shrink,
