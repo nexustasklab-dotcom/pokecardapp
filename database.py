@@ -19,26 +19,26 @@ def init_db():
         -- 保有BOX一覧
         CREATE TABLE IF NOT EXISTS holdings (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            pack_id     INTEGER NOT NULL,        -- cardrush pack ID
+            pack_id     INTEGER NOT NULL,
             pack_name   TEXT    NOT NULL,
             img_url     TEXT    NOT NULL,
-            shrink      INTEGER NOT NULL,        -- 1=あり, 0=なし
+            shrink      INTEGER NOT NULL,
             qty         INTEGER NOT NULL DEFAULT 1,
-            snkrdunk_id TEXT,                   -- スニダン apparel ID
-            morimori_url TEXT,                  -- 森森 商品URL（shrink=0はNULL）
-            mobile_ichiban_url TEXT,            -- モバイル一番 商品URL（森森の代替）
-            snkrdunk_price INTEGER,             -- 最新スニダン相場（1個）
-            morimori_price INTEGER,             -- 最新森森買取（1個）
-            mobile_ichiban_price INTEGER,       -- 最新モバイル一番買取（1個）
-            updated_at  TEXT,                   -- 最終価格更新日時
+            snkrdunk_id TEXT,
+            morimori_url TEXT,
+            mobile_ichiban_url TEXT,
+            snkrdunk_price INTEGER,
+            morimori_price INTEGER,
+            mobile_ichiban_price INTEGER,
+            updated_at  TEXT,
             created_at  TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
         );
 
-        -- 資産スナップショット（「更新」ボタン押下ごとに記録）
+        -- 資産スナップショット
         CREATE TABLE IF NOT EXISTS snapshots (
             id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            total_snkrdunk  INTEGER NOT NULL,   -- その時点の総スニダン相場合計
-            total_morimori  INTEGER NOT NULL,   -- その時点の総森森買取合計
+            total_snkrdunk  INTEGER NOT NULL,
+            total_morimori  INTEGER NOT NULL,
             recorded_at     TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
         );
         """)
@@ -46,13 +46,20 @@ def init_db():
 
 # ─── holdings CRUD ────────────────────────────────────────────────
 
-def add_holding(pack_id: int, pack_name: str, img_url: str, shrink: bool,
-                snkrdunk_id: str | None, morimori_url: str | None, mobile_ichiban_url: str | None = None) -> int:
+def add_holding(pack_id, pack_name: str, img_url: str, shrink: bool,
+                snkrdunk_id: str | None, morimori_url: str | None,
+                mobile_ichiban_url: str | None = None) -> int:
     """BOXを1件追加。同一pack_id + shrinkが既にあればqtyを+1して返す。"""
+    # pack_id は文字列でも数値でも受け付ける
+    try:
+        pack_id_int = int(pack_id)
+    except (ValueError, TypeError):
+        pack_id_int = pack_id
+
     with get_conn() as conn:
         existing = conn.execute(
             "SELECT id, qty FROM holdings WHERE pack_id=? AND shrink=?",
-            (pack_id, int(shrink))
+            (pack_id_int, int(shrink))
         ).fetchone()
         if existing:
             conn.execute(
@@ -63,7 +70,8 @@ def add_holding(pack_id: int, pack_name: str, img_url: str, shrink: bool,
             """INSERT INTO holdings
                (pack_id, pack_name, img_url, shrink, qty, snkrdunk_id, morimori_url, mobile_ichiban_url)
                VALUES (?, ?, ?, ?, 1, ?, ?, ?)""",
-            (pack_id, pack_name, img_url, int(shrink), snkrdunk_id, morimori_url, mobile_ichiban_url)
+            (pack_id_int, pack_name, img_url, int(shrink),
+             snkrdunk_id, morimori_url, mobile_ichiban_url)
         )
         return cur.lastrowid
 
@@ -107,22 +115,34 @@ def save_snapshot(total_snkrdunk: int, total_morimori: int):
         )
 
 
-def get_snapshots() -> list[dict]:
+def get_snapshots(limit: int | None = None) -> list[dict]:
+    """スナップショットを新しい順で返す。limit指定可。
+    返り値の各dictには 'snkrdunk_total' / 'morimori_total' エイリアスも含める。"""
     with get_conn() as conn:
-        rows = conn.execute(
-            "SELECT * FROM snapshots ORDER BY recorded_at DESC"
-        ).fetchall()
-        return [dict(r) for r in rows]
+        if limit is not None:
+            rows = conn.execute(
+                "SELECT * FROM snapshots ORDER BY recorded_at DESC LIMIT ?",
+                (limit,)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM snapshots ORDER BY recorded_at DESC"
+            ).fetchall()
+
+        result = []
+        for r in rows:
+            d = dict(r)
+            # app.py 側との互換キー
+            d["snkrdunk_total"] = d.get("total_snkrdunk", 0)
+            d["morimori_total"] = d.get("total_morimori", 0)
+            result.append(d)
+        return result
 
 
 def get_prev_snapshot() -> dict | None:
     """前回（最新の1つ前）のスナップショットを返す。"""
-    with get_conn() as conn:
-        rows = conn.execute(
-            "SELECT * FROM snapshots ORDER BY recorded_at DESC LIMIT 2"
-        ).fetchall()
-        # rows[0]=最新, rows[1]=前回
-        return dict(rows[1]) if len(rows) >= 2 else None
+    snaps = get_snapshots(limit=2)
+    return snaps[1] if len(snaps) >= 2 else None
 
 
 def get_first_snapshot() -> dict | None:
@@ -131,4 +151,9 @@ def get_first_snapshot() -> dict | None:
         row = conn.execute(
             "SELECT * FROM snapshots ORDER BY recorded_at ASC LIMIT 1"
         ).fetchone()
-        return dict(row) if row else None
+        if not row:
+            return None
+        d = dict(row)
+        d["snkrdunk_total"] = d.get("total_snkrdunk", 0)
+        d["morimori_total"] = d.get("total_morimori", 0)
+        return d
