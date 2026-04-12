@@ -26,8 +26,10 @@ def init_db():
             qty         INTEGER NOT NULL DEFAULT 1,
             snkrdunk_id TEXT,                   -- スニダン apparel ID
             morimori_url TEXT,                  -- 森森 商品URL（shrink=0はNULL）
+            mobile_ichiban_url TEXT,            -- モバイル一番 商品URL（森森の代替）
             snkrdunk_price INTEGER,             -- 最新スニダン相場（1個）
             morimori_price INTEGER,             -- 最新森森買取（1個）
+            mobile_ichiban_price INTEGER,       -- 最新モバイル一番買取（1個）
             updated_at  TEXT,                   -- 最終価格更新日時
             created_at  TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
         );
@@ -45,7 +47,7 @@ def init_db():
 # ─── holdings CRUD ────────────────────────────────────────────────
 
 def add_holding(pack_id: int, pack_name: str, img_url: str, shrink: bool,
-                snkrdunk_id: str | None, morimori_url: str | None) -> int:
+                snkrdunk_id: str | None, morimori_url: str | None, mobile_ichiban_url: str | None = None) -> int:
     """BOXを1件追加。同一pack_id + shrinkが既にあればqtyを+1して返す。"""
     with get_conn() as conn:
         existing = conn.execute(
@@ -59,9 +61,9 @@ def add_holding(pack_id: int, pack_name: str, img_url: str, shrink: bool,
             return existing["id"]
         cur = conn.execute(
             """INSERT INTO holdings
-               (pack_id, pack_name, img_url, shrink, qty, snkrdunk_id, morimori_url)
-               VALUES (?, ?, ?, ?, 1, ?, ?)""",
-            (pack_id, pack_name, img_url, int(shrink), snkrdunk_id, morimori_url)
+               (pack_id, pack_name, img_url, shrink, qty, snkrdunk_id, morimori_url, mobile_ichiban_url)
+               VALUES (?, ?, ?, ?, 1, ?, ?, ?)""",
+            (pack_id, pack_name, img_url, int(shrink), snkrdunk_id, morimori_url, mobile_ichiban_url)
         )
         return cur.lastrowid
 
