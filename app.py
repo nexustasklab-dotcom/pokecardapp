@@ -307,18 +307,22 @@ if holdings:
             '</div>'
         )
 
-        # カード本体 + 右サイドにコントロール
-        col_card, col_ctrl = st.columns([5, 1])
-        with col_card:
-            st.markdown(card_html, unsafe_allow_html=True)
-        with col_ctrl:
+        # カード本体（フル幅）
+        st.markdown(card_html, unsafe_allow_html=True)
+
+        # コントロール（カード下に横並び：＋ / 数 / － / 🗑）
+        c_plus, c_qty, c_minus, c_del = st.columns(4)
+        with c_plus:
             if st.button("＋", key=f"plus_{h['id']}", use_container_width=True):
                 db.update_qty_delta(h["id"], 1)
                 st.rerun()
+        with c_qty:
             st.markdown(f"<div class='qty-display'>{qty}</div>", unsafe_allow_html=True)
+        with c_minus:
             if st.button("－", key=f"minus_{h['id']}", use_container_width=True):
                 db.update_qty_delta(h["id"], -1)
                 st.rerun()
+        with c_del:
             if st.button("🗑", key=f"del_{h['id']}", use_container_width=True, help="削除"):
                 db.delete_holding(h["id"])
                 st.rerun()
