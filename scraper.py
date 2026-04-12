@@ -15,32 +15,41 @@ HEADERS = {
 }
 
 
-def _fetch_snkrdunk_jsonld(apparel_id: str) -> dict | None:
-    """スニダン商品ページのJSON-LD(Product)を取得して返す。"""
+def _fetch_snkrdunk_html(apparel_id: str) -> str | None:
     if not apparel_id:
         return None
     url = f"https://snkrdunk.com/apparels/{apparel_id}"
     try:
         r = requests.get(url, headers=HEADERS, timeout=12)
         r.raise_for_status()
-        soup = BeautifulSoup(r.text, "html.parser")
-        for script in soup.find_all("script", type="application/ld+json"):
-            try:
-                data = json.loads(script.string or "")
-                if data.get("@type") == "Product":
-                    return data
-            except (json.JSONDecodeError, TypeError):
-                continue
-        return None
+        return r.text
     except Exception:
         return None
 
 
+def _parse_jsonld_product(html: str) -> dict | None:
+    if not html:
+        return None
+    soup = BeautifulSoup(html, "html.parser")
+    for script in soup.find_all("script", type="application/ld+json"):
+        try:
+            data = json.loads(script.string or "")
+            # 配列で来るパターンもある
+            if isinstance(data, list):
+                for d in data:
+                    if isinstance(d, dict) and d.get("@type") == "Product":
+                        return d
+            elif isinstance(data, dict) and data.get("@type") == "Product":
+                return data
+        except (json.JSONDecodeError, TypeError):
+            continue
+    return None
+
+
 def get_snkrdunk_price(apparel_id: str) -> int | None:
-    """
-    スニダンの商品ページからJSON-LDのlowPrice（新品最安値）を取得する。
-    """
-    data = _fetch_snkrdunk_jsonld(apparel_id)
+    """JSON-LDのlowPriceから新品最安値を取得"""
+    html = _fetch_snkrdunk_html(apparel_id)
+    data = _parse_jsonld_product(html)
     if not data:
         return None
     try:
@@ -52,24 +61,37 @@ def get_snkrdunk_price(apparel_id: str) -> int | None:
 
 def get_snkrdunk_image(apparel_id: str) -> str | None:
     """
-    スニダンの商品ページからJSON-LDのimage URLを取得する。
-    image は文字列 or リストで返ってくる可能性があるので両対応。
+    スニダンの商品ページから商品画像URLを取得する。
+    優先順位: JSON-LD image → og:image → twitter:image
     """
-    data = _fetch_snkrdunk_jsonld(apparel_id)
-    if not data:
+    html = _fetch_snkrdunk_html(apparel_id)
+    if not html:
         return None
-    img = data.get("image")
-    if isinstance(img, list):
-        return img[0] if img else None
-    if isinstance(img, str):
-        return img
+
+    # 1. JSON-LD
+    data = _parse_jsonld_product(html)
+    if data:
+        img = data.get("image")
+        if isinstance(img, list) and img:
+            return img[0]
+        if isinstance(img, str) and img:
+            return img
+
+    # 2. og:image
+    soup = BeautifulSoup(html, "html.parser")
+    og = soup.find("meta", property="og:image")
+    if og and og.get("content"):
+        return og["content"]
+
+    # 3. twitter:image
+    tw = soup.find("meta", attrs={"name": "twitter:image"})
+    if tw and tw.get("content"):
+        return tw["content"]
+
     return None
 
 
 def get_morimori_price(product_url: str) -> int | None:
-    """
-    森森買取の商品ページから現金買取価格（#price-target）を取得する。
-    """
     if not product_url:
         return None
     try:
@@ -86,9 +108,6 @@ def get_morimori_price(product_url: str) -> int | None:
 
 
 def get_mobile_ichiban_price(product_url: str) -> int | None:
-    """
-    モバイル一番の商品ページから買取価格を取得する。
-    """
     if not product_url:
         return None
     try:
@@ -114,9 +133,6 @@ def get_mobile_ichiban_price(product_url: str) -> int | None:
 
 
 def fetch_prices(snkrdunk_id: str | None, morimori_url: str | None, mobile_ichiban_url: str | None = None) -> dict:
-    """
-    1商品分の価格を両サイトから取得してdictで返す。
-    """
     snkr_price = get_snkrdunk_price(snkrdunk_id)
     mori_price = get_morimori_price(morimori_url)
 
