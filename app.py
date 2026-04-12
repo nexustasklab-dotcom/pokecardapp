@@ -6,33 +6,26 @@ from master_data import PACKS
 
 st.set_page_config(page_title="PokeCard Asset", layout="centered", initial_sidebar_state="collapsed")
 
+# 最小限のCSS：幅制御とUI要素の非表示のみ。columns には触らない
 st.markdown("""
 <style>
-html, body, [data-testid="stAppViewContainer"] {
+html, body {
     overflow-x: hidden !important;
-    max-width: 100vw !important;
+}
+[data-testid="stAppViewContainer"] {
+    background: #fafafa;
+    overflow-x: hidden !important;
 }
 [data-testid="stMainBlockContainer"],
-section.main > div.block-container,
 .main .block-container,
 .block-container {
     max-width: 430px !important;
-    width: 100% !important;
     padding-top: 0.5rem !important;
     padding-bottom: 1rem !important;
     padding-left: 8px !important;
     padding-right: 8px !important;
     margin-left: auto !important;
     margin-right: auto !important;
-    overflow-x: hidden !important;
-    box-sizing: border-box !important;
-}
-[data-testid="stAppViewContainer"] { background: #fafafa; }
-[data-testid="stAppViewContainer"] > .main,
-section.main {
-    max-width: 100vw !important;
-    margin: 0 auto !important;
-    overflow-x: hidden !important;
 }
 #MainMenu { visibility: hidden; }
 header { visibility: hidden; height: 0 !important; }
@@ -41,51 +34,14 @@ footer { visibility: hidden; }
 [data-testid="stToolbar"] { display: none; }
 [data-testid="stHeader"] { display: none; }
 
-/* すべての要素に box-sizing 強制 */
-* { box-sizing: border-box !important; }
+/* 画像はみ出し防止 */
+img { max-width: 100% !important; height: auto; }
 
-/* horizontal block: 横並び維持 */
-div[data-testid="stHorizontalBlock"] {
-    flex-wrap: nowrap !important;
-    gap: 4px !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    overflow: hidden !important;
-}
-div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
-    min-width: 0 !important;
-    overflow: hidden !important;
-}
-
-/* ボタン */
-.stButton { width: 100% !important; }
+/* ボタンのフォントサイズだけ調整 */
 .stButton > button {
-    width: 100% !important;
-    min-width: 0 !important;
-    padding: 0.25rem 0 !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
     font-size: 13px !important;
+    padding: 0.3rem 0.5rem !important;
 }
-
-/* 数量表示 */
-.qty-display {
-    text-align: center;
-    font-weight: 700;
-    font-size: 16px;
-    line-height: 38px;
-    border: 1px solid #e5e7eb;
-    border-radius: 6px;
-    background: #f9fafb;
-    margin: 0;
-    color: #111827;
-    width: 100%;
-}
-
-/* カード内の画像も最大幅制限 */
-img { max-width: 100% !important; }
-</style>
 </style>
 """, unsafe_allow_html=True)
 
@@ -142,9 +98,9 @@ if last_updated:
         last_updated_disp = last_updated[5:16].replace("-", "/")
     except Exception:
         last_updated_disp = last_updated
-    update_btn_label = f"最新相場に更新（最終: {last_updated_disp}）"
+    update_btn_label = f"更新（{last_updated_disp}）"
 else:
-    update_btn_label = "最新相場に更新（未更新）"
+    update_btn_label = "最新相場に更新"
 
 
 def estimate_mori(h):
@@ -156,17 +112,18 @@ def estimate_mori(h):
         return mori if mori else max(snkr - 3000, 0)
 
 
-col1, col2 = st.columns([3, 1])
+# ヘッダーボタン: 2:1 比率で保存も見える幅に
+col1, col2 = st.columns([2, 1])
 with col1:
     if st.button(update_btn_label, type="primary", use_container_width=True, key="update_btn"):
         st.session_state.updating = True
 with col2:
-    if st.button("保存", use_container_width=True, key="save_btn"):
+    if st.button("💾 保存", use_container_width=True, key="save_btn"):
         holdings = db.get_all_holdings()
         t_s = sum((h.get("snkrdunk_price", 0) or 0) * h["qty"] for h in holdings)
         t_m = sum(estimate_mori(h) * h["qty"] for h in holdings)
         db.save_snapshot(t_s, t_m)
-        st.success("💾")
+        st.success("保存しました")
 
 # 画像再取得
 holdings_check = db.get_all_holdings()
@@ -250,13 +207,12 @@ def diff_str(amount):
 
 def diff_color(amount):
     if amount > 0:
-        return "#16a34a"  # 緑
+        return "#16a34a"
     elif amount < 0:
-        return "#dc2626"  # 赤
+        return "#dc2626"
     return "#6b7280"
 
 
-# サマリー（1行に圧縮：改行を入れない）
 summary_html = (
     '<div style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:white;padding:12px 14px;border-radius:14px;margin:8px 0;">'
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">'
@@ -303,7 +259,6 @@ if holdings:
         else:
             img_src = proxied_img(raw_img)
 
-        # 名前部分（インラインHTML、改行なし）
         if prefix:
             name_html = f'<div style="font-size:10px;color:#6b7280;line-height:1.2;">{prefix}</div><div style="font-size:13px;font-weight:700;line-height:1.25;color:#111827;">{main_name}</div>'
         else:
@@ -311,19 +266,15 @@ if holdings:
 
         shrink_badge = f'<span style="display:inline-block;margin-top:4px;font-size:10px;background:{"#dcfce7;color:#166534" if shrink else "#fff7ed;color:#c2410c"};padding:2px 8px;border-radius:12px;">シュリンク{"有" if shrink else "無"}</span>'
 
-        # 価格テーブル: 市場価格 / 買取金額 を縦カラムで揃える
-        # ヘッダー行 + 単価行 + 小計行
         price_table = (
             '<div style="margin-top:10px;padding-top:8px;border-top:1px solid #f3f4f6;">'
             '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;align-items:baseline;">'
             '<div></div>'
             '<div style="font-size:9px;color:#9ca3af;text-align:right;">市場価格</div>'
             '<div style="font-size:9px;color:#9ca3af;text-align:right;">買取金額</div>'
-
             '<div style="font-size:10px;color:#6b7280;">単価</div>'
             f'<div style="font-size:14px;font-weight:700;color:#111827;text-align:right;">{fmt(snkr_price)}</div>'
             f'<div style="font-size:14px;font-weight:700;color:#111827;text-align:right;">{mori_unit}{mark}</div>'
-
             f'<div style="font-size:10px;color:#6b7280;">小計（×{qty}）</div>'
             f'<div style="font-size:17px;font-weight:800;color:#dc2626;text-align:right;">{fmt(snkr_price * qty)}</div>'
             f'<div style="font-size:15px;font-weight:700;color:#dc2626;text-align:right;">{mori_sub}{mark}</div>'
@@ -331,7 +282,7 @@ if holdings:
             '</div>'
         )
 
-        # カードHTML: 右上に数量バッジを配置
+        # 数量バッジ（カード右上）
         qty_badge = f'<div style="position:absolute;top:10px;right:12px;background:#dc2626;color:white;font-size:13px;font-weight:700;padding:3px 10px;border-radius:12px;min-width:32px;text-align:center;">×{qty}</div>'
 
         card_html = (
@@ -345,21 +296,20 @@ if holdings:
             '</div>'
         )
 
-        # カード本体
         st.markdown(card_html, unsafe_allow_html=True)
 
-        # コントロール（カード下に小さく：＋ － 🗑）
-        c_plus, c_minus, c_spacer, c_del = st.columns([1, 1, 4, 1])
+        # コントロール: ＋ / － / 🗑 を均等3分割
+        c_plus, c_minus, c_del = st.columns(3)
         with c_plus:
-            if st.button("＋", key=f"plus_{h['id']}", use_container_width=True):
+            if st.button("＋ 追加", key=f"plus_{h['id']}", use_container_width=True):
                 db.update_qty_delta(h["id"], 1)
                 st.rerun()
         with c_minus:
-            if st.button("－", key=f"minus_{h['id']}", use_container_width=True):
+            if st.button("－ 減らす", key=f"minus_{h['id']}", use_container_width=True):
                 db.update_qty_delta(h["id"], -1)
                 st.rerun()
         with c_del:
-            if st.button("🗑", key=f"del_{h['id']}", use_container_width=True, help="削除"):
+            if st.button("🗑 削除", key=f"del_{h['id']}", use_container_width=True):
                 db.delete_holding(h["id"])
                 st.rerun()
 
