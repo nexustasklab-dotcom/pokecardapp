@@ -61,15 +61,56 @@ def get_morimori_price(product_url: str) -> int | None:
         return None
 
 
-def fetch_prices(snkrdunk_id: str | None, morimori_url: str | None) -> dict:
+def get_mobile_ichiban_price(product_url: str) -> int | None:
+    """
+    モバイル一番の商品ページから買取価格を取得する。
+    森森買取の代替として使用。
+    """
+    if not product_url:
+        return None
+    try:
+        r = requests.get(product_url, headers=HEADERS, timeout=12)
+        r.raise_for_status()
+        soup = BeautifulSoup(r.text, "html.parser")
+        # label要素で最大価格を探す（text-rightクラス）
+        price_labels = soup.find_all("label", class_="mb-0 text-right")
+        if price_labels:
+            prices = []
+            for label in price_labels:
+                text = label.get_text(strip=True)
+                if "円" in text:
+                    try:
+                        price = int(re.sub(r"[^\d]", "", text))
+                        if price > 0:
+                            prices.append(price)
+                    except ValueError:
+                        continue
+            return max(prices) if prices else None
+        return None
+    except Exception:
+        return None
+
+
+def fetch_prices(snkrdunk_id: str | None, morimori_url: str | None, mobile_ichiban_url: str | None = None) -> dict:
     """
     1商品分の価格を両サイトから取得してdictで返す。
+    森森が取得できない場合はモバイル一番にフォールバック。
     {
         "snkrdunk": 16000 | None,
         "morimori": 14600 | None,
+        "mobile_ichiban": 15000 | None (フォールバック時のみ),
     }
     """
+    snkr_price = get_snkrdunk_price(snkrdunk_id)
+    mori_price = get_morimori_price(morimori_url)
+    
+    # 森森が取得できず、モバイル一番URLがある場合はフォールバック
+    mobile_price = None
+    if mori_price is None and mobile_ichiban_url:
+        mobile_price = get_mobile_ichiban_price(mobile_ichiban_url)
+    
     return {
-        "snkrdunk": get_snkrdunk_price(snkrdunk_id),
-        "morimori": get_morimori_price(morimori_url),
+        "snkrdunk": snkr_price,
+        "morimori": mori_price,
+        "mobile_ichiban": mobile_price,
     }
