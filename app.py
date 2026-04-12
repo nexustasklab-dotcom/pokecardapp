@@ -36,11 +36,22 @@ footer { visibility: hidden; }
 .stButton > button { padding: 0.25rem 0.4rem; }
 div[data-testid="column"] .stButton > button { min-height: 36px; }
 
+/* モバイルでも columns を横並び維持（折り返し禁止） */
+div[data-testid="stHorizontalBlock"] {
+    flex-wrap: nowrap !important;
+    gap: 4px !important;
+}
+div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    width: auto !important;
+}
+
 /* 右側コントロール列のボタン間隔を詰める */
 div[data-testid="column"] div[data-testid="stVerticalBlock"] {
     gap: 4px !important;
 }
-/* 数量表示の中央寄せ */
+/* 数量表示 */
 .qty-display {
     text-align: center;
     font-weight: 700;
@@ -50,6 +61,7 @@ div[data-testid="column"] div[data-testid="stVerticalBlock"] {
     border-radius: 6px;
     background: #f9fafb;
     margin: 0;
+    color: #111827;
 }
 </style>
 """, unsafe_allow_html=True)
