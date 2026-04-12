@@ -35,6 +35,22 @@ footer { visibility: hidden; }
 
 .stButton > button { padding: 0.25rem 0.4rem; }
 div[data-testid="column"] .stButton > button { min-height: 36px; }
+
+/* 右側コントロール列のボタン間隔を詰める */
+div[data-testid="column"] div[data-testid="stVerticalBlock"] {
+    gap: 4px !important;
+}
+/* 数量表示の中央寄せ */
+.qty-display {
+    text-align: center;
+    font-weight: 700;
+    font-size: 16px;
+    line-height: 36px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    background: #f9fafb;
+    margin: 0;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -199,9 +215,9 @@ def diff_str(amount):
 
 def diff_color(amount):
     if amount > 0:
-        return "#2563eb"
+        return "#16a34a"  # 緑
     elif amount < 0:
-        return "#dc2626"
+        return "#dc2626"  # 赤
     return "#6b7280"
 
 
@@ -299,6 +315,7 @@ if holdings:
             if st.button("＋", key=f"plus_{h['id']}", use_container_width=True):
                 db.update_qty_delta(h["id"], 1)
                 st.rerun()
+            st.markdown(f"<div class='qty-display'>{qty}</div>", unsafe_allow_html=True)
             if st.button("－", key=f"minus_{h['id']}", use_container_width=True):
                 db.update_qty_delta(h["id"], -1)
                 st.rerun()
