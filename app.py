@@ -109,10 +109,22 @@ if holdings and any(h["updated_at"] for h in holdings):
     last_updated = max(times)[:16] if times else ""
 
 
-# ─── 更新ボタン（最上部） ──────────────────────────────────────────────
-label = f"最新相場に更新（最終: {last_updated}）" if last_updated else "最新相場に更新"
-if st.button(label, type="primary", use_container_width=True, key="update_button_top"):
-    st.session_state.updating = True
+# ─── 更新・保存ボタン（最上部） ──────────────────────────────────────────────
+col_update, col_save = st.columns([4, 1])
+
+with col_update:
+    label = f"最新相場に更新（最終: {last_updated}）" if last_updated else "最新相場に更新"
+    if st.button(label, type="primary", use_container_width=True, key="update_button_top"):
+        st.session_state.updating = True
+
+with col_save:
+    if st.button("保存", use_container_width=True, key="save_button"):
+        # 現在の合計でスナップショット保存（前回差・累計増減の基準点作成）
+        t_s = sum((h["snkrdunk_price"] or 0) * h["qty"] for h in holdings)
+        t_m = sum((h["morimori_price"] or 0) * h["qty"] for h in holdings if h["shrink"])
+        db.save_snapshot(t_s, t_m)
+        st.success("💾", icon="✅")
+        st.rerun()
 
 if st.session_state.updating:
     holdings_fresh = db.get_all_holdings()
@@ -303,31 +315,29 @@ else:
         </div>
         """
 
-        st.markdown(f"""
-        <div class="box-card">
-          <div style="display:grid;grid-template-columns:56px 1fr 1fr auto;gap:8px;padding:10px;align-items:center;">
-            <img src="{h['img_url']}" style="width:56px;height:56px;border-radius:8px;object-fit:cover;" onerror="this.src='https://via.placeholder.com/56'">
-            <div>
-              <div class="box-name">{name_display}</div>
-              {badge}
+        col1, col2 = st.columns([5, 1])
+        
+        with col1:
+            st.markdown(f"""
+            <div class="box-card">
+              <div style="display:grid;grid-template-columns:56px 1fr 1fr;gap:8px;padding:10px;align-items:center;">
+                <img src="{h['img_url']}" style="width:56px;height:56px;border-radius:8px;object-fit:cover;" onerror="this.src='https://via.placeholder.com/56'">
+                <div>
+                  <div class="box-name">{name_display}</div>
+                  {badge}
+                </div>
+                <div class="price-block">
+                  {price_html}
+                </div>
+              </div>
+              <div class="box-footer">
+                {footer_html}
+              </div>
             </div>
-            <div class="price-block">
-              {price_html}
-            </div>
-            <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
-              <input type="number" value="{qty}" min="1" max="99" style="width:50px;height:36px;text-align:center;border-radius:8px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-secondary);font-size:14px;">
-              <button style="background:none;border:none;color:var(--color-text-tertiary);font-size:16px;cursor:pointer;padding:4px;">🗑</button>
-            </div>
-          </div>
-          <div class="box-footer">
-            {footer_html}
-          </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        # 数量変更 & 削除
-        col_qty, col_del = st.columns([3, 1])
-        with col_qty:
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            # 数量変更
             new_qty = st.number_input(
                 "数量", min_value=1, max_value=99, value=qty,
                 key=f"qty_{h['id']}", label_visibility="collapsed"
@@ -335,8 +345,9 @@ else:
             if new_qty != qty:
                 db.update_qty(h["id"], new_qty)
                 st.rerun()
-        with col_del:
-            if st.button("🗑", key=f"del_{h['id']}", help="削除"):
+            
+            # 削除ボタン
+            if st.button("🗑", key=f"del_{h['id']}", help="削除", use_container_width=True):
                 db.delete_holding(h["id"])
                 st.rerun()
 
