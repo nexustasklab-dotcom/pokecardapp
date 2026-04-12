@@ -86,6 +86,15 @@ def update_qty(holding_id: int, qty: int):
         conn.execute("UPDATE holdings SET qty=? WHERE id=?", (qty, holding_id))
 
 
+def update_qty_delta(holding_id: int, delta: int):
+    """数量を delta だけ増減（最低1）"""
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE holdings SET qty = MAX(1, qty + ?) WHERE id=?",
+            (delta, holding_id)
+        )
+
+
 def update_prices(holding_id: int, snkrdunk_price: int | None, morimori_price: int | None):
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with get_conn() as conn:
