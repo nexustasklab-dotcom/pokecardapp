@@ -6,10 +6,9 @@ from master_data import PACKS
 
 st.set_page_config(page_title="PokeCard Asset", layout="centered", initial_sidebar_state="collapsed")
 
-# iPhone 15 Plus 幅(430px)準拠CSS - 複数セレクタで強制
+# iPhone 15 Plus 幅(430px)準拠CSS
 st.markdown("""
 <style>
-/* 新しいStreamlit対応 */
 [data-testid="stMainBlockContainer"],
 section.main > div.block-container,
 .main .block-container,
@@ -37,14 +36,15 @@ footer { visibility: hidden; }
 [data-testid="stToolbar"] { display: none; }
 [data-testid="stHeader"] { display: none; }
 
-/* ボタンの余白を詰める */
 .stButton > button {
     padding: 0.25rem 0.5rem;
 }
-
-/* 数量±ボタン */
 div[data-testid="column"] .stButton > button {
     min-height: 32px;
+}
+/* カード間の余白を詰める */
+div[data-testid="stVerticalBlock"] > div[data-testid="stVerticalBlockBorderWrapper"] {
+    gap: 0 !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -62,7 +62,7 @@ if "fixing_images" not in st.session_state:
 st.markdown("<div style='background:#E63946;color:white;padding:8px;text-align:center;font-weight:600;border-radius:8px;margin-bottom:8px;'>PokeCard Asset</div>", unsafe_allow_html=True)
 
 
-def is_broken_img(url: str | None) -> bool:
+def is_broken_img(url):
     if not url or not isinstance(url, str):
         return True
     url = url.strip()
@@ -73,16 +73,24 @@ def is_broken_img(url: str | None) -> bool:
     return False
 
 
-def proxied_img(url: str) -> str:
-    """
-    画像URLを weserv.nl 経由にしてホットリンク防止(Referer)を回避する。
-    URLからスキーマを取り除いて渡す必要がある。
-    """
+def proxied_img(url):
     if is_broken_img(url):
         return ""
-    # https:// or http:// を取り除く
     stripped = re.sub(r"^https?://", "", url)
-    return f"https://images.weserv.nl/?url={stripped}&w=112&h=112&fit=cover"
+    return f"https://images.weserv.nl/?url={stripped}&w=140&h=140&fit=cover"
+
+
+def split_pack_name(pack_name):
+    """パック名を「種別」と「タイトル」に分割して2行表示用に返す"""
+    if "「" in pack_name and "」" in pack_name:
+        prefix = pack_name.split("「")[0].strip()
+        main_name = pack_name.split("「")[1].split("」")[0]
+        return prefix, main_name
+    # 「拡張パック XXX」のようなスペース区切り
+    parts = pack_name.split(" ", 1)
+    if len(parts) == 2:
+        return parts[0], parts[1]
+    return "", pack_name
 
 
 # 最終更新日時取得
@@ -102,6 +110,7 @@ if last_updated:
 else:
     update_btn_label = "最新相場に更新（未更新）"
 
+
 def estimate_mori(h):
     snkr = h.get("snkrdunk_price") or 0
     mori = h.get("morimori_price") or 0
@@ -109,6 +118,7 @@ def estimate_mori(h):
         return mori
     else:
         return mori if mori else max(snkr - 3000, 0)
+
 
 # ボタン
 col1, col2 = st.columns([4, 1])
@@ -123,7 +133,7 @@ with col2:
         db.save_snapshot(t_s, t_m)
         st.success("💾")
 
-# 画像再取得ボタン
+# 画像再取得
 holdings_check = db.get_all_holdings()
 broken_count = sum(1 for h in holdings_check if is_broken_img(h.get("img_url")) and h.get("snkrdunk_id"))
 if broken_count > 0:
@@ -192,8 +202,10 @@ if first_snap:
     first_snkr = first_snap.get("snkrdunk_total", 0) or 0
     first_diff_snkr = total_snkr - first_snkr
 
+
 def fmt(amount):
     return f"¥{amount:,}" if amount else "¥0"
+
 
 def diff_str(amount):
     if amount > 0:
@@ -202,34 +214,43 @@ def diff_str(amount):
         return fmt(amount)
     return "¥0"
 
-# サマリー表示
+
+def diff_color(amount):
+    if amount > 0:
+        return "#2563eb"  # 青
+    elif amount < 0:
+        return "#dc2626"  # 赤
+    return "#6b7280"
+
+
+# サマリー表示（縦圧縮版）
 st.markdown(f"""
-<div style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:white;padding:16px;border-radius:16px;margin:10px 0;">
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+<div style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:white;padding:12px 14px;border-radius:14px;margin:8px 0;">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
     <div>
-      <div style="font-size:12px;opacity:0.8;">総資産</div>
-      <div style="font-size:24px;font-weight:700;">{fmt(total_snkr)}</div>
+      <div style="font-size:11px;opacity:0.85;">総資産</div>
+      <div style="font-size:22px;font-weight:700;line-height:1.2;">{fmt(total_snkr)}</div>
     </div>
     <div>
-      <div style="font-size:12px;opacity:0.8;">買取金額</div>
-      <div style="font-size:24px;font-weight:700;">{fmt(total_mori)}</div>
+      <div style="font-size:11px;opacity:0.85;">買取金額</div>
+      <div style="font-size:22px;font-weight:700;line-height:1.2;">{fmt(total_mori)}</div>
     </div>
   </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;">
-    <div style="background:rgba(255,255,255,0.15);padding:8px;border-radius:8px;">
-      <div style="font-size:10px;">前回比</div>
-      <div style="font-size:14px;font-weight:700;">{diff_str(prev_diff_snkr)}</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">
+    <div style="background:white;padding:6px 8px;border-radius:6px;">
+      <div style="font-size:9px;color:#6b7280;">前回比</div>
+      <div style="font-size:13px;font-weight:700;color:{diff_color(prev_diff_snkr)};">{diff_str(prev_diff_snkr)}</div>
     </div>
-    <div style="background:rgba(255,255,255,0.15);padding:8px;border-radius:8px;">
-      <div style="font-size:10px;">累計増減</div>
-      <div style="font-size:14px;font-weight:700;">{diff_str(first_diff_snkr)}</div>
+    <div style="background:white;padding:6px 8px;border-radius:6px;">
+      <div style="font-size:9px;color:#6b7280;">累計増減</div>
+      <div style="font-size:13px;font-weight:700;color:{diff_color(first_diff_snkr)};">{diff_str(first_diff_snkr)}</div>
     </div>
   </div>
 </div>
 """, unsafe_allow_html=True)
 
 # BOX一覧
-st.markdown("<div style='margin:0 4px;font-size:11px;color:#666;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;'>保有BOX一覧</div>", unsafe_allow_html=True)
+st.markdown("<div style='margin:6px 4px 4px;font-size:11px;color:#666;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;'>保有BOX一覧</div>", unsafe_allow_html=True)
 
 if holdings:
     for h in holdings:
@@ -249,54 +270,58 @@ if holdings:
                 mori_price = max(snkr_price - 3000, 0)
                 mori_is_estimated = True
 
-        pack_name = h["pack_name"]
-        if "「" in pack_name and "」" in pack_name:
-            prefix = pack_name.split("「")[0].strip()
-            main_name = pack_name.split("「")[1].split("」")[0]
-            display_name = f"{prefix} {main_name}"
-        else:
-            display_name = pack_name
+        prefix, main_name = split_pack_name(h["pack_name"])
 
         mori_display = fmt(mori_price) if mori_price else "ー"
-        if mori_is_estimated and mori_price:
-            mori_display = f"{mori_display}<span style='font-size:9px;color:#9ca3af;'>(仮)</span>"
-
         mori_subtotal_display = fmt(mori_price * qty) if mori_price else "ー"
-        if mori_is_estimated and mori_price:
-            mori_subtotal_display = f"{mori_subtotal_display}<span style='font-size:9px;color:#9ca3af;'>(仮)</span>"
+        mori_estimated_mark = "<span style='font-size:9px;color:#9ca3af;margin-left:2px;'>(仮)</span>" if (mori_is_estimated and mori_price) else ""
 
-        # 画像URL: 壊れていればプレースホルダー、それ以外はプロキシ経由
+        # 画像
         raw_img = h.get("img_url") or ""
         if is_broken_img(raw_img):
-            img_src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='56' height='56'><rect width='56' height='56' fill='%23f3f4f6'/><text x='50%25' y='50%25' text-anchor='middle' dy='.3em' font-size='9' fill='%239ca3af'>no img</text></svg>"
+            img_src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><rect width='64' height='64' fill='%23f3f4f6'/><text x='50%25' y='50%25' text-anchor='middle' dy='.3em' font-size='9' fill='%239ca3af'>no img</text></svg>"
         else:
             img_src = proxied_img(raw_img)
 
+        # パック名表示（2行）
+        if prefix:
+            name_html = f"""
+              <div style="font-size:10px;color:#6b7280;line-height:1.2;">{prefix}</div>
+              <div style="font-size:13px;font-weight:700;line-height:1.25;color:#111827;">{main_name}</div>
+            """
+        else:
+            name_html = f"""
+              <div style="font-size:13px;font-weight:700;line-height:1.25;color:#111827;">{main_name}</div>
+            """
+
         # BOXカード本体
         st.markdown(f"""
-        <div style="background:white;border:0.5px solid #e5e7eb;border-radius:12px;padding:12px;margin:4px 0;">
-          <div style="display:flex;gap:10px;align-items:center;">
-            <img src="{img_src}" style="width:56px;height:56px;border-radius:8px;object-fit:cover;background:#f3f4f6;flex-shrink:0;">
+        <div style="background:white;border:1px solid #e5e7eb;border-radius:14px;padding:12px;margin:6px 0;box-shadow:0 1px 2px rgba(0,0,0,0.03);">
+          <div style="display:flex;gap:12px;align-items:center;">
+            <img src="{img_src}" style="width:64px;height:64px;border-radius:10px;object-fit:cover;background:#f3f4f6;flex-shrink:0;">
             <div style="flex:1;min-width:0;">
-              <div style="font-size:11.5px;font-weight:600;margin-bottom:4px;line-height:1.3;">{display_name}</div>
-              <span style="font-size:10px;background:{'#dcfce7;color:#166534' if shrink else '#fff7ed;color:#c2410c'};padding:2px 6px;border-radius:12px;">シュリンク{'有' if shrink else '無'}</span>
-            </div>
-            <div style="text-align:right;flex-shrink:0;">
-              <div style="font-size:12px;font-weight:700;">{fmt(snkr_price)}</div>
-              <div style="font-size:12px;font-weight:700;">{mori_display}</div>
+              {name_html}
+              <span style="display:inline-block;margin-top:4px;font-size:10px;background:{'#dcfce7;color:#166534' if shrink else '#fff7ed;color:#c2410c'};padding:2px 8px;border-radius:12px;">シュリンク{'有' if shrink else '無'}</span>
             </div>
           </div>
-          <div style="border-top:1px solid #f3f4f6;margin-top:8px;padding-top:6px;display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-size:10px;color:#6b7280;">小計（× {qty}）</span>
-            <div style="text-align:right;">
-              <div style="font-size:12px;font-weight:600;">{fmt(snkr_price * qty)}</div>
-              <div style="font-size:12px;font-weight:600;">{mori_subtotal_display}</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:8px;border-top:1px solid #f3f4f6;">
+            <span style="font-size:10px;color:#9ca3af;">単価</span>
+            <div style="display:flex;gap:10px;align-items:baseline;">
+              <span style="font-size:15px;font-weight:700;color:#111827;">{fmt(snkr_price)}</span>
+              <span style="font-size:13px;font-weight:600;color:#6b7280;">/ {mori_display}{mori_estimated_mark}</span>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
+            <span style="font-size:10px;color:#9ca3af;">小計（× {qty}）</span>
+            <div style="display:flex;gap:10px;align-items:baseline;">
+              <span style="font-size:17px;font-weight:800;color:#dc2626;">{fmt(snkr_price * qty)}</span>
+              <span style="font-size:13px;font-weight:600;color:#6b7280;">/ {mori_subtotal_display}{mori_estimated_mark}</span>
             </div>
           </div>
         </div>
         """, unsafe_allow_html=True)
 
-        # 数量調整 ± ボタン + 削除
+        # 数量調整 ± + 削除（カードのすぐ下）
         c_minus, c_qty, c_plus, c_spacer, c_del = st.columns([1, 1, 1, 3, 1])
         with c_minus:
             if st.button("－", key=f"minus_{h['id']}", use_container_width=True):
