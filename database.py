@@ -16,7 +16,6 @@ def init_db():
     """初回起動時にテーブルを作成する。"""
     with get_conn() as conn:
         conn.executescript("""
-        -- 保有BOX一覧
         CREATE TABLE IF NOT EXISTS holdings (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             pack_id     INTEGER NOT NULL,
@@ -34,7 +33,6 @@ def init_db():
             created_at  TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
         );
 
-        -- 資産スナップショット
         CREATE TABLE IF NOT EXISTS snapshots (
             id              INTEGER PRIMARY KEY AUTOINCREMENT,
             total_snkrdunk  INTEGER NOT NULL,
@@ -50,7 +48,6 @@ def add_holding(pack_id, pack_name: str, img_url: str, shrink: bool,
                 snkrdunk_id: str | None, morimori_url: str | None,
                 mobile_ichiban_url: str | None = None) -> int:
     """BOXを1件追加。同一pack_id + shrinkが既にあればqtyを+1して返す。"""
-    # pack_id は文字列でも数値でも受け付ける
     try:
         pack_id_int = int(pack_id)
     except (ValueError, TypeError):
@@ -100,6 +97,15 @@ def update_prices(holding_id: int, snkrdunk_price: int | None, morimori_price: i
         )
 
 
+def update_img_url(holding_id: int, img_url: str):
+    """画像URLを更新する。"""
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE holdings SET img_url=? WHERE id=?",
+            (img_url, holding_id)
+        )
+
+
 def delete_holding(holding_id: int):
     with get_conn() as conn:
         conn.execute("DELETE FROM holdings WHERE id=?", (holding_id,))
@@ -116,8 +122,7 @@ def save_snapshot(total_snkrdunk: int, total_morimori: int):
 
 
 def get_snapshots(limit: int | None = None) -> list[dict]:
-    """スナップショットを新しい順で返す。limit指定可。
-    返り値の各dictには 'snkrdunk_total' / 'morimori_total' エイリアスも含める。"""
+    """スナップショットを新しい順で返す。limit指定可。"""
     with get_conn() as conn:
         if limit is not None:
             rows = conn.execute(
@@ -132,7 +137,6 @@ def get_snapshots(limit: int | None = None) -> list[dict]:
         result = []
         for r in rows:
             d = dict(r)
-            # app.py 側との互換キー
             d["snkrdunk_total"] = d.get("total_snkrdunk", 0)
             d["morimori_total"] = d.get("total_morimori", 0)
             result.append(d)
@@ -140,13 +144,11 @@ def get_snapshots(limit: int | None = None) -> list[dict]:
 
 
 def get_prev_snapshot() -> dict | None:
-    """前回（最新の1つ前）のスナップショットを返す。"""
     snaps = get_snapshots(limit=2)
     return snaps[1] if len(snaps) >= 2 else None
 
 
 def get_first_snapshot() -> dict | None:
-    """初回（最古）のスナップショットを返す。"""
     with get_conn() as conn:
         row = conn.execute(
             "SELECT * FROM snapshots ORDER BY recorded_at ASC LIMIT 1"
