@@ -156,7 +156,7 @@ def estimate_mori(h):
         return mori if mori else max(snkr - 3000, 0)
 
 
-col1, col2 = st.columns([4, 1])
+col1, col2 = st.columns([3, 1])
 with col1:
     if st.button(update_btn_label, type="primary", use_container_width=True, key="update_btn"):
         st.session_state.updating = True
@@ -331,10 +331,13 @@ if holdings:
             '</div>'
         )
 
-        # カードHTML（全部1行に連結、改行なし）
+        # カードHTML: 右上に数量バッジを配置
+        qty_badge = f'<div style="position:absolute;top:10px;right:12px;background:#dc2626;color:white;font-size:13px;font-weight:700;padding:3px 10px;border-radius:12px;min-width:32px;text-align:center;">×{qty}</div>'
+
         card_html = (
-            '<div style="background:white;border:1px solid #e5e7eb;border-radius:14px;padding:12px;margin:6px 0;box-shadow:0 1px 2px rgba(0,0,0,0.03);">'
-            '<div style="display:flex;gap:12px;align-items:center;">'
+            '<div style="position:relative;background:white;border:1px solid #e5e7eb;border-radius:14px;padding:12px;margin:6px 0;box-shadow:0 1px 2px rgba(0,0,0,0.03);">'
+            f'{qty_badge}'
+            '<div style="display:flex;gap:12px;align-items:center;padding-right:48px;">'
             f'<img src="{img_src}" style="width:64px;height:64px;border-radius:10px;object-fit:cover;background:#f3f4f6;flex-shrink:0;">'
             f'<div style="flex:1;min-width:0;">{name_html}{shrink_badge}</div>'
             '</div>'
@@ -342,17 +345,15 @@ if holdings:
             '</div>'
         )
 
-        # カード本体（フル幅）
+        # カード本体
         st.markdown(card_html, unsafe_allow_html=True)
 
-        # コントロール（カード下に横並び：＋ / 数 / － / 🗑）
-        c_plus, c_qty, c_minus, c_del = st.columns(4)
+        # コントロール（カード下に小さく：＋ － 🗑）
+        c_plus, c_minus, c_spacer, c_del = st.columns([1, 1, 4, 1])
         with c_plus:
             if st.button("＋", key=f"plus_{h['id']}", use_container_width=True):
                 db.update_qty_delta(h["id"], 1)
                 st.rerun()
-        with c_qty:
-            st.markdown(f"<div class='qty-display'>{qty}</div>", unsafe_allow_html=True)
         with c_minus:
             if st.button("－", key=f"minus_{h['id']}", use_container_width=True):
                 db.update_qty_delta(h["id"], -1)
