@@ -52,16 +52,9 @@ img { max-width: 100% !important; height: auto; }
     text-overflow: ellipsis;
 }
 
-/* モバイルでも columns を縦積みにせず横並び維持 */
-div[data-testid="stHorizontalBlock"] {
-    flex-wrap: nowrap !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    overflow: hidden !important;
-}
+/* columns はStreamlitデフォルトのレスポンシブに任せる */
 div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
     min-width: 0 !important;
-    overflow: hidden !important;
 }
 
 /* expander のスタイル調整 */
