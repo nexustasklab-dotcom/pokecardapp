@@ -8,23 +8,31 @@ st.set_page_config(page_title="PokeCard Asset", layout="centered", initial_sideb
 
 st.markdown("""
 <style>
+html, body, [data-testid="stAppViewContainer"] {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+}
 [data-testid="stMainBlockContainer"],
 section.main > div.block-container,
 .main .block-container,
 .block-container {
     max-width: 430px !important;
+    width: 100% !important;
     padding-top: 0.5rem !important;
     padding-bottom: 1rem !important;
-    padding-left: 0.5rem !important;
-    padding-right: 0.5rem !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
     margin-left: auto !important;
     margin-right: auto !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
 }
 [data-testid="stAppViewContainer"] { background: #fafafa; }
 [data-testid="stAppViewContainer"] > .main,
 section.main {
-    max-width: 430px !important;
+    max-width: 100vw !important;
     margin: 0 auto !important;
+    overflow-x: hidden !important;
 }
 #MainMenu { visibility: hidden; }
 header { visibility: hidden; height: 0 !important; }
@@ -33,45 +41,51 @@ footer { visibility: hidden; }
 [data-testid="stToolbar"] { display: none; }
 [data-testid="stHeader"] { display: none; }
 
-.stButton > button { padding: 0.25rem 0.4rem; }
-div[data-testid="column"] .stButton > button { min-height: 36px; }
+/* すべての要素に box-sizing 強制 */
+* { box-sizing: border-box !important; }
 
-/* モバイルでも columns を横並び維持（折り返し禁止） */
+/* horizontal block: 横並び維持 */
 div[data-testid="stHorizontalBlock"] {
     flex-wrap: nowrap !important;
     gap: 4px !important;
     width: 100% !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
 }
 div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
     min-width: 0 !important;
     overflow: hidden !important;
 }
-/* ボタンを親列いっぱいに収める */
-div[data-testid="stHorizontalBlock"] .stButton > button {
+
+/* ボタン */
+.stButton { width: 100% !important; }
+.stButton > button {
     width: 100% !important;
     min-width: 0 !important;
     padding: 0.25rem 0 !important;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    font-size: 13px !important;
 }
 
-/* 右側コントロール列のボタン間隔を詰める */
-div[data-testid="column"] div[data-testid="stVerticalBlock"] {
-    gap: 4px !important;
-}
 /* 数量表示 */
 .qty-display {
     text-align: center;
     font-weight: 700;
     font-size: 16px;
-    line-height: 36px;
+    line-height: 38px;
     border: 1px solid #e5e7eb;
     border-radius: 6px;
     background: #f9fafb;
     margin: 0;
     color: #111827;
+    width: 100%;
 }
+
+/* カード内の画像も最大幅制限 */
+img { max-width: 100% !important; }
+</style>
 </style>
 """, unsafe_allow_html=True)
 
