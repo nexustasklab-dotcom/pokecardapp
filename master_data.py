@@ -79,7 +79,7 @@ PACKS = [
     # ── 2024 ──────────────────────────────────────────────────────
     {
         "id": "424297", "name": "ハイクラスパック「テラスタルフェスex」", "released_at": "2024-12-06",
-        "img": "https://cdn.snkrdunk.com/upload_bg_removed/20241209033558-0.webp",
+        "img": "https://via.placeholder.com/300x300?text=テラスタルフェスex",
         "snkrdunk_id": "424297", 
         "morimori_url": None, 
         "mobile_ichiban_url": None,
