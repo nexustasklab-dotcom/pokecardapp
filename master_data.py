@@ -76,6 +76,15 @@ PACKS = [
         "mobile_ichiban_url": None,
         "shrink_fixed": None,
     },
+    # ── 2024 ──────────────────────────────────────────────────────
+    {
+        "id": "424297", "name": "ハイクラスパック「テラスタルフェスex」", "released_at": "2024-12-06",
+        "img": "https://cdn.snkrdunk.com/upload_bg_removed/20241209033558-0.webp",
+        "snkrdunk_id": "424297", 
+        "morimori_url": None, 
+        "mobile_ichiban_url": None,
+        "shrink_fixed": None,
+    },
     {
         "id": "618443", "name": "スペシャルBOX「ポケモンセンターヒロシマ」", "released_at": "2024-12-06",
         "img": "https://cdn.snkrdunk.com/upload_bg_removed/20251016093844-0.webp",
