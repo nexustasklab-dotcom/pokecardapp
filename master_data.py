@@ -37,22 +37,6 @@ PACKS = [
     },
     # ── 2025 ──────────────────────────────────────────────────────
     {
-        "id": "724998", "name": "スタートデッキ100「バトルコレクション」", "released_at": "2025-12-19",
-        "img": "https://cdn.snkrdunk.com/upload_bg_removed/20251223071721-0.webp",
-        "snkrdunk_id": "724998", 
-        "morimori_url": None, 
-        "mobile_ichiban_url": None,
-        "shrink_fixed": None,
-    },
-    {
-        "id": "735757", "name": "スタートデッキ100「バトルコレクション コロちゃおver」", "released_at": "2025-12-19",
-        "img": "https://cdn.snkrdunk.com/upload_bg_removed/20251223072117-0.webp",
-        "snkrdunk_id": "735757", 
-        "morimori_url": None, 
-        "mobile_ichiban_url": None,
-        "shrink_fixed": None,
-    },
-    {
         "id": "721913", "name": "ハイクラスパック「MEGAドリームex」", "released_at": "2025-11-28",
         "img": "https://cdn.snkrdunk.com/upload_bg_removed/20251128091038-0.webp",
         "snkrdunk_id": "721913", 
@@ -77,14 +61,6 @@ PACKS = [
         "shrink_fixed": None,
     },
     {
-        "id": "674432", "name": "スターターセットMEGA「メガゲンガーex」", "released_at": "2025-09-05",
-        "img": "https://cdn.snkrdunk.com/upload_bg_removed/20251022075124-0.webp",
-        "snkrdunk_id": "674432", 
-        "morimori_url": None, 
-        "mobile_ichiban_url": None,
-        "shrink_fixed": None,
-    },
-    {
         "id": "628146", "name": "拡張パック「メガブレイブ」", "released_at": "2025-08-01",
         "img": "https://cdn.snkrdunk.com/upload_bg_removed/20250805020822-2.webp",
         "snkrdunk_id": "628146", 
@@ -101,44 +77,10 @@ PACKS = [
         "shrink_fixed": None,
     },
     {
-        "id": "424297", "name": "プレミアムトレーナーボックスMEGA", "released_at": "2025-08-01",
-        "img": "https://cdn.snkrdunk.com/upload_bg_removed/20250813062440-0.webp",
-        "snkrdunk_id": "424297", 
-        "morimori_url": None, 
-        "mobile_ichiban_url": None,
-        "shrink_fixed": None,
-    },
-    {
         "id": "618443", "name": "スペシャルBOX「ポケモンセンターヒロシマ」", "released_at": "2024-12-06",
         "img": "https://cdn.snkrdunk.com/upload_bg_removed/20251016093844-0.webp",
         "snkrdunk_id": "618443", 
         "morimori_url": "https://www.morimori-kaitori.jp/category/2401/product/299678", 
-        "mobile_ichiban_url": None,
-        "shrink_fixed": None,
-    },
-    # ── 2024 ──────────────────────────────────────────────────────
-    {
-        "id": "628148tf", "name": "ハイクラスパック「テラスタルフェスex」", "released_at": "2024-12-06",
-        "img": "https://cdn.snkrdunk.com/upload_bg_removed/20241209033558-0.webp",
-        "snkrdunk_id": "628148", 
-        "morimori_url": None, 
-        "mobile_ichiban_url": None,
-        "shrink_fixed": None,
-    },
-    {
-        "id": "674432eb", "name": "拡張パック「超電ブレイカー」", "released_at": "2024-10-18",
-        "img": "https://cdn.snkrdunk.com/upload_bg_removed/20241018091824-0.webp",
-        "snkrdunk_id": "674432", 
-        "morimori_url": None, 
-        "mobile_ichiban_url": None,
-        "shrink_fixed": None,
-    },
-    # ── 2023 ──────────────────────────────────────────────────────
-    {
-        "id": "703025", "name": "強化拡張パック「ポケモンカード151」", "released_at": "2023-06-16",
-        "img": "https://cdn.snkrdunk.com/upload_bg_removed/20230620070952-0.webp",
-        "snkrdunk_id": "703025", 
-        "morimori_url": None, 
         "mobile_ichiban_url": None,
         "shrink_fixed": None,
     },
@@ -148,10 +90,10 @@ PACKS = [
         "img": "https://cdn.snkrdunk.com/upload_bg_removed/20221205073249-0.webp",
         "snkrdunk_id": "509419", 
         "morimori_url": None, 
-        "mobile_ichiban_url": None,
+        "mobile_ichiban_url": "https://www.mobile-ichiban.com/Prod/3/04",
         "shrink_fixed": None,
     },
-    # ── cardrush画像のみ ─────────────────────────────────────────
+    # ── その他パック ─────────────────────────────────────────────
     {"id": "cr_493", "name": "スペシャルカードセット メガエルレイドex", "released_at": "2026-01-23",
      "img": "https://files.cardrush.media/pokemon/packs/493.webp", 
      "snkrdunk_id": None, "morimori_url": None, "mobile_ichiban_url": None, "shrink_fixed": None},
