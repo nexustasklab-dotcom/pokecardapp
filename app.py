@@ -5,12 +5,51 @@ from master_data import PACKS
 
 st.set_page_config(page_title="PokeCard Asset", layout="wide", initial_sidebar_state="collapsed")
 
+# ライトモード固定 + モバイル最適化
 st.markdown("""
 <style>
-.main .block-container { padding: 0; max-width: 430px; margin: 0 auto; }
+/* ライトモード強制 */
+html, body, [data-testid="stAppViewContainer"], [data-testid="stHeader"], .stApp {
+    background-color: #ffffff !important;
+    color: #111111 !important;
+    color-scheme: light !important;
+}
+.main .block-container { padding: 0.5rem; max-width: 460px; margin: 0 auto; }
 #MainMenu { visibility: hidden; }
 header { visibility: hidden; }
 .stDeployButton { display: none; }
+
+/* すべてのテキストを黒に */
+.stApp, .stApp p, .stApp span, .stApp div, .stApp label, .stApp h1, .stApp h2, .stApp h3 {
+    color: #111111 !important;
+}
+
+/* number_input を小さく */
+[data-testid="stNumberInput"] input {
+    padding: 2px 4px !important;
+    font-size: 12px !important;
+    text-align: center !important;
+    color: #111 !important;
+    background: #fff !important;
+}
+[data-testid="stNumberInput"] button {
+    padding: 0 !important;
+    min-width: 18px !important;
+    width: 18px !important;
+}
+
+/* 削除ボタン */
+.stButton > button {
+    padding: 2px 6px !important;
+    min-height: 28px !important;
+    font-size: 12px !important;
+}
+
+/* プライマリボタンだけ大きく */
+.stButton > button[kind="primary"] {
+    min-height: 40px !important;
+    font-size: 14px !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -20,7 +59,7 @@ if "updating" not in st.session_state:
 if "adding" not in st.session_state:
     st.session_state.adding = False
 
-st.markdown("<div style='background:#E63946;color:white;padding:8px;text-align:center;font-weight:600;'>PokeCard Asset</div>", unsafe_allow_html=True)
+st.markdown("<div style='background:#E63946;color:white;padding:8px;text-align:center;font-weight:600;border-radius:8px;margin-bottom:8px;'>PokeCard Asset</div>", unsafe_allow_html=True)
 
 col1, col2 = st.columns([4, 1])
 with col1:
@@ -89,31 +128,33 @@ def diff_str(amount):
     return "¥0"
 
 st.markdown(f"""
-<div style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:white;padding:16px;border-radius:16px;margin:10px;">
+<div style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:white !important;padding:16px;border-radius:16px;margin:10px 0;">
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
     <div>
-      <div style="font-size:12px;opacity:0.8;">総資産</div>
-      <div style="font-size:24px;font-weight:700;">{fmt(total_snkr)}</div>
+      <div style="font-size:12px;opacity:0.8;color:white !important;">総資産</div>
+      <div style="font-size:22px;font-weight:700;color:white !important;">{fmt(total_snkr)}</div>
     </div>
     <div>
-      <div style="font-size:12px;opacity:0.8;">買取金額</div>
-      <div style="font-size:24px;font-weight:700;">{fmt(total_mori)}</div>
+      <div style="font-size:12px;opacity:0.8;color:white !important;">買取金額</div>
+      <div style="font-size:22px;font-weight:700;color:white !important;">{fmt(total_mori)}</div>
     </div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;">
     <div style="background:rgba(255,255,255,0.15);padding:8px;border-radius:8px;">
-      <div style="font-size:10px;">前回比</div>
-      <div style="font-size:14px;font-weight:700;">{diff_str(prev_diff_snkr)}</div>
+      <div style="font-size:10px;color:white !important;">前回比</div>
+      <div style="font-size:14px;font-weight:700;color:white !important;">{diff_str(prev_diff_snkr)}</div>
     </div>
     <div style="background:rgba(255,255,255,0.15);padding:8px;border-radius:8px;">
-      <div style="font-size:10px;">累計増減</div>
-      <div style="font-size:14px;font-weight:700;">{diff_str(first_diff_snkr)}</div>
+      <div style="font-size:10px;color:white !important;">累計増減</div>
+      <div style="font-size:14px;font-weight:700;color:white !important;">{diff_str(first_diff_snkr)}</div>
     </div>
   </div>
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown("<div style='margin:0 12px;font-size:11px;color:#666;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;'>保有BOX一覧</div>", unsafe_allow_html=True)
+st.markdown("<div style='margin:8px 0 4px 0;font-size:11px;color:#666 !important;font-weight:600;'>保有BOX一覧</div>", unsafe_allow_html=True)
+
+PLACEHOLDER_IMG = "https://cdn.snkrdunk.com/upload_bg_removed/20250813062440-0.webp"
 
 if holdings:
     for h in holdings:
@@ -122,7 +163,7 @@ if holdings:
         qty = h["qty"]
         shrink = h.get("shrink", False)
 
-        pack_name = h["pack_name"]
+        pack_name = h["pack_name"] or ""
         if "「" in pack_name and "」" in pack_name:
             prefix = pack_name.split("「")[0].strip()
             main_name = pack_name.split("「")[1].split("」")[0]
@@ -130,80 +171,87 @@ if holdings:
         else:
             display_name = pack_name
 
-        with st.container():
-            col_main, col_ops = st.columns([5, 1])
+        img_src = h.get("img_url") or PLACEHOLDER_IMG
 
-            with col_main:
-                st.markdown(f"""
-                <div style="background:white;border:0.5px solid #e5e7eb;border-radius:12px;padding:12px;margin:4px 0;">
-                  <div style="display:flex;gap:12px;align-items:center;">
-                    <img src="{h['img_url']}" style="width:56px;height:56px;border-radius:8px;object-fit:cover;">
-                    <div style="flex:1;">
-                      <div style="font-size:11.5px;font-weight:600;margin-bottom:4px;">{display_name}</div>
-                      <span style="font-size:10px;background:{'#dcfce7;color:#166534' if shrink else '#fff7ed;color:#c2410c'};padding:2px 6px;border-radius:12px;">シュリンク{'有' if shrink else '無'}</span>
-                    </div>
-                    <div style="text-align:center;">
-                      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
-                        <div style="font-size:12px;font-weight:700;">{fmt(snkr_price)}</div>
-                        <div style="font-size:12px;font-weight:700;">{fmt(mori_price) if shrink and mori_price else "ー"}</div>
-                      </div>
-                    </div>
-                  </div>
-                  <div style="border-top:1px solid #f3f4f6;margin-top:8px;padding-top:6px;display:flex;justify-content:space-between;align-items:center;">
-                    <span style="font-size:10px;color:#6b7280;">小計（× {qty}）</span>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
-                      <div style="font-size:12px;font-weight:600;">{fmt(snkr_price * qty)}</div>
-                      <div style="font-size:12px;font-weight:600;">{fmt(mori_price * qty) if shrink and mori_price else "ー"}</div>
-                    </div>
-                  </div>
+        col_main, col_ops = st.columns([4, 1])
+
+        with col_main:
+            st.markdown(f"""
+            <div style="background:#ffffff;border:0.5px solid #e5e7eb;border-radius:12px;padding:10px;margin:4px 0;color:#111 !important;">
+              <div style="display:flex;gap:10px;align-items:center;">
+                <img src="{img_src}" style="width:52px;height:52px;border-radius:8px;object-fit:cover;background:#f3f4f6;">
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:11.5px;font-weight:600;margin-bottom:4px;color:#111 !important;line-height:1.3;">{display_name}</div>
+                  <span style="font-size:9px;background:{'#dcfce7;color:#166534' if shrink else '#fff7ed;color:#c2410c'} !important;padding:2px 6px;border-radius:12px;">シュリンク{'有' if shrink else '無'}</span>
                 </div>
-                """, unsafe_allow_html=True)
+                <div style="text-align:right;">
+                  <div style="font-size:11px;font-weight:700;color:#111 !important;">{fmt(snkr_price)}</div>
+                  <div style="font-size:11px;font-weight:700;color:#6b7280 !important;">{fmt(mori_price) if shrink and mori_price else "ー"}</div>
+                </div>
+              </div>
+              <div style="border-top:1px solid #f3f4f6;margin-top:8px;padding-top:6px;display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:10px;color:#6b7280 !important;">小計（× {qty}）</span>
+                <div style="display:flex;gap:8px;">
+                  <div style="font-size:11px;font-weight:600;color:#111 !important;">{fmt(snkr_price * qty)}</div>
+                  <div style="font-size:11px;font-weight:600;color:#6b7280 !important;">{fmt(mori_price * qty) if shrink and mori_price else "ー"}</div>
+                </div>
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
 
-            with col_ops:
-                new_qty = st.number_input("数量", min_value=1, max_value=99, value=qty, key=f"qty_{h['id']}", label_visibility="collapsed")
-                if new_qty != qty:
-                    db.update_qty(h["id"], new_qty)
-                    st.rerun()
+        with col_ops:
+            new_qty = st.number_input("数量", min_value=1, max_value=99, value=qty, key=f"qty_{h['id']}", label_visibility="collapsed")
+            if new_qty != qty:
+                db.update_qty(h["id"], new_qty)
+                st.rerun()
 
-                if st.button("🗑", key=f"del_{h['id']}", help="削除"):
-                    db.delete_holding(h["id"])
-                    st.rerun()
+            if st.button("🗑", key=f"del_{h['id']}", help="削除"):
+                db.delete_holding(h["id"])
+                st.rerun()
 
 if st.button("＋ BOXを追加する", use_container_width=True, key="add_btn"):
     st.session_state.adding = True
+    st.rerun()
 
+# BOX追加フロー（画像なし・テキストのみ）
 if st.session_state.adding:
     if "selected_pack" not in st.session_state:
         st.session_state.selected_pack = None
 
     if st.session_state.selected_pack is None:
         st.markdown("**パックを選択**")
-        search = st.text_input("検索", placeholder="パック名で検索")
+        search = st.text_input("検索", placeholder="パック名で検索", label_visibility="collapsed")
 
-        filtered = [p for p in PACKS if not search or search.lower() in p["name"].lower()][:20]
+        filtered = [p for p in PACKS if not search or search.lower() in p["name"].lower()][:30]
 
         for pack in filtered:
-            col_img, col_info, col_btn = st.columns([1, 4, 1])
-            with col_img:
-                st.image(pack["img"], width=52)
+            col_info, col_btn = st.columns([4, 1])
             with col_info:
-                st.markdown(f"**{pack['name']}**  \n{pack['released_at']}")
+                st.markdown(
+                    f"<div style='padding:6px 0;'>"
+                    f"<div style='font-size:13px;font-weight:600;color:#111;'>{pack['name']}</div>"
+                    f"<div style='font-size:10px;color:#6b7280;'>{pack['released_at']}</div>"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
             with col_btn:
                 if st.button("選択", key=f"select_{pack['id']}"):
                     st.session_state.selected_pack = pack
                     st.rerun()
 
-        if st.button("キャンセル"):
+        if st.button("キャンセル", key="cancel_add"):
             st.session_state.adding = False
             st.rerun()
 
     else:
         pack = st.session_state.selected_pack
-        col_img, col_info = st.columns([1, 4])
-        with col_img:
-            st.image(pack["img"], width=52)
-        with col_info:
-            st.markdown(f"**{pack['name']}**  \n{pack['released_at']}")
+        st.markdown(
+            f"<div style='padding:8px 0;'>"
+            f"<div style='font-size:14px;font-weight:700;color:#111;'>{pack['name']}</div>"
+            f"<div style='font-size:11px;color:#6b7280;'>{pack['released_at']}</div>"
+            f"</div>",
+            unsafe_allow_html=True
+        )
 
         shrink_fixed = pack.get("shrink_fixed")
 
@@ -219,15 +267,15 @@ if st.session_state.adding:
 
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("← 戻る", use_container_width=True):
+            if st.button("← 戻る", use_container_width=True, key="back_add"):
                 st.session_state.selected_pack = None
                 st.rerun()
         with col2:
-            if st.button("✅ 追加", type="primary", use_container_width=True):
+            if st.button("✅ 追加", type="primary", use_container_width=True, key="confirm_add"):
                 db.add_holding(
                     pack_id=str(pack["id"]),
                     pack_name=pack["name"],
-                    img_url=pack["img"],
+                    img_url=PLACEHOLDER_IMG,
                     shrink=has_shrink,
                     snkrdunk_id=pack.get("snkrdunk_id"),
                     morimori_url=pack.get("morimori_url") if has_shrink else None,
