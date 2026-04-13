@@ -6,46 +6,88 @@ from bs4 import BeautifulSoup
 
 HEADERS = {
     "User-Agent": (
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
-        "AppleWebKit/605.1.15 (KHTML, like Gecko) "
-        "Version/17.0 Mobile/15E148 Safari/604.1"
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0.0.0 Safari/537.36"
     ),
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "ja-JP,ja;q=0.9",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Upgrade-Insecure-Requests": "1",
 }
 
 
-def get_snkrdunk_price(apparel_id: str) -> int | None:
+def _fetch_snkrdunk_html(apparel_id: str) -> str | None:
+    url = f"https://snkrdunk.com/apparels/{apparel_id}"
+    try:
+        r = requests.get(url, headers=HEADERS, timeout=15)
+        r.raise_for_status()
+        return r.text
+    except Exception as e:
+        print(f"[snkrdunk] fetch error {apparel_id}: {e}")
+        return None
+
+
+def get_snkrdunk_info(apparel_id: str) -> dict | None:
     """
-    スニダンの商品ページからJSON-LDのlowPrice（新品最安値）を取得する。
-    URL: https://snkrdunk.com/apparels/{apparel_id}
+    スニダンから {name, price, image} を取得する。
+    JSON-LD の Product のうち productID/sku が apparel_id と一致するものだけ採用。
+    これによって同ページに混在する別商品(パック版等)を誤取得しない。
     """
     if not apparel_id:
         return None
-    url = f"https://snkrdunk.com/apparels/{apparel_id}"
-    try:
-        r = requests.get(url, headers=HEADERS, timeout=12)
-        r.raise_for_status()
-        soup = BeautifulSoup(r.text, "html.parser")
-        for script in soup.find_all("script", type="application/ld+json"):
-            try:
-                data = json.loads(script.string or "")
-                if data.get("@type") == "Product":
-                    price = data.get("offers", {}).get("lowPrice")
-                    if price is not None:
-                        return int(price)
-            except (json.JSONDecodeError, TypeError):
+    html = _fetch_snkrdunk_html(apparel_id)
+    if not html:
+        return None
+
+    soup = BeautifulSoup(html, "html.parser")
+    target = str(apparel_id)
+
+    for script in soup.find_all("script", type="application/ld+json"):
+        try:
+            data = json.loads(script.string or "{}")
+        except (json.JSONDecodeError, TypeError):
+            continue
+
+        candidates = data if isinstance(data, list) else [data]
+        for d in candidates:
+            if not isinstance(d, dict) or d.get("@type") != "Product":
                 continue
-        return None
-    except Exception:
-        return None
+            pid = str(d.get("productID") or d.get("sku") or "")
+            if pid != target:
+                continue
+
+            offers = d.get("offers") or {}
+            price = offers.get("lowPrice") or offers.get("price")
+            if price is None and isinstance(offers.get("offers"), list):
+                # AggregateOffer の中の最初の offer から取る
+                first = offers["offers"][0] if offers["offers"] else {}
+                price = first.get("price")
+            if price is None:
+                continue
+
+            img = d.get("image")
+            if isinstance(img, list):
+                img = img[0] if img else None
+
+            try:
+                return {
+                    "name": d.get("name"),
+                    "price": int(price),
+                    "image": img,
+                    "matched_id": apparel_id,
+                }
+            except (ValueError, TypeError):
+                continue
+    return None
+
+
+def get_snkrdunk_price(apparel_id: str) -> int | None:
+    info = get_snkrdunk_info(apparel_id)
+    return info["price"] if info else None
 
 
 def get_morimori_price(product_url: str) -> int | None:
-    """
-    森森買取の商品ページから現金買取価格（#price-target）を取得する。
-    シュリンクなしは morimori_url=None で呼ばれないため考慮不要。
-    """
     if not product_url:
         return None
     try:
@@ -54,7 +96,7 @@ def get_morimori_price(product_url: str) -> int | None:
         soup = BeautifulSoup(r.text, "html.parser")
         el = soup.find(id="price-target")
         if el:
-            text = el.get_text(strip=True)   # 例: "14,600円"
+            text = el.get_text(strip=True)
             return int(re.sub(r"[^\d]", "", text))
         return None
     except Exception:
@@ -62,17 +104,12 @@ def get_morimori_price(product_url: str) -> int | None:
 
 
 def get_mobile_ichiban_price(product_url: str) -> int | None:
-    """
-    モバイル一番の商品ページから買取価格を取得する。
-    森森買取の代替として使用。
-    """
     if not product_url:
         return None
     try:
         r = requests.get(product_url, headers=HEADERS, timeout=12)
         r.raise_for_status()
         soup = BeautifulSoup(r.text, "html.parser")
-        # label要素で最大価格を探す（text-rightクラス）
         price_labels = soup.find_all("label", class_="mb-0 text-right")
         if price_labels:
             prices = []
@@ -91,67 +128,28 @@ def get_mobile_ichiban_price(product_url: str) -> int | None:
         return None
 
 
-def fetch_prices(snkrdunk_id: str | None, morimori_url: str | None, mobile_ichiban_url: str | None = None) -> dict:
-    """
-    1商品分の価格を両サイトから取得してdictで返す。
-    森森が取得できない場合はモバイル一番にフォールバック。
-    {
-        "snkrdunk": 16000 | None,
-        "morimori": 14600 | None,
-        "mobile_ichiban": 15000 | None (フォールバック時のみ),
-    }
-    """
-    snkr_price = get_snkrdunk_price(snkrdunk_id)
+def fetch_prices(snkrdunk_id: str | None, morimori_url: str | None,
+                 mobile_ichiban_url: str | None = None) -> dict:
+    info = get_snkrdunk_info(snkrdunk_id) if snkrdunk_id else None
+    snkr_price = info["price"] if info else None
+    snkr_name = info["name"] if info else None
+    snkr_image = info["image"] if info else None
+
     mori_price = get_morimori_price(morimori_url)
-    
-    # 森森が取得できず、モバイル一番URLがある場合はフォールバック
+
     mobile_price = None
     if mori_price is None and mobile_ichiban_url:
         mobile_price = get_mobile_ichiban_price(mobile_ichiban_url)
-    
+
     return {
         "snkrdunk": snkr_price,
+        "snkrdunk_name": snkr_name,
+        "snkrdunk_image": snkr_image,
         "morimori": mori_price,
         "mobile_ichiban": mobile_price,
     }
 
-# デバッグ用の直接価格設定関数
-def get_test_prices():
-    """テスト用の価格データ（ネットワーク問題回避用）"""
-    return {
-        "424297": 23399,  # テラスタルフェスex (Chrome確認済み)
-        "509419": 16000,  # VSTARユニバース  
-        "762693": 15700,  # ニンジャスピナー
-        "762695": 15200,  # ニンジャスピナー（シュリンクなし）
-        "743533": 28500,  # ムニキスゼロ
-        "743535": 27800,  # ムニキスゼロ（シュリンクなし）
-        "721913": 15700,  # MEGAドリームex
-        "721915": 15000,  # MEGAドリームex（シュリンクなし）
-        "687430": 28500,  # インフェルノX
-        "628146": 8500,   # メガブレイブ
-        "628148": 9000,   # メガシンフォニア
-        "618443": 12000,  # ポケモンセンターヒロシマ
-    }
 
-def fetch_prices_with_fallback(snkrdunk_id: str | None, morimori_url: str | None, mobile_ichiban_url: str | None = None) -> dict:
-    """
-    ネットワーク問題時にフォールバック価格を使用する版
-    """
-    # まずフォールバック価格を試行
-    test_prices = get_test_prices()
-    if snkrdunk_id and snkrdunk_id in test_prices:
-        return {
-            "snkrdunk": test_prices.get(snkrdunk_id),
-            "morimori": None,
-            "mobile_ichiban": None,
-        }
-    
-    # フォールバックになければ通常のスクレイピング
-    try:
-        return fetch_prices(snkrdunk_id, morimori_url, mobile_ichiban_url)
-    except:
-        return {
-            "snkrdunk": None,
-            "morimori": None,
-            "mobile_ichiban": None,
-        }
+def fetch_prices_with_fallback(snkrdunk_id: str | None, morimori_url: str | None,
+                               mobile_ichiban_url: str | None = None) -> dict:
+    return fetch_prices(snkrdunk_id, morimori_url, mobile_ichiban_url)
