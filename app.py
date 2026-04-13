@@ -5,7 +5,6 @@ from master_data import PACKS
 
 st.set_page_config(page_title="PokeCard Asset", layout="wide", initial_sidebar_state="collapsed")
 
-# 簡潔CSS
 st.markdown("""
 <style>
 .main .block-container { padding: 0; max-width: 430px; margin: 0 auto; }
@@ -15,17 +14,14 @@ header { visibility: hidden; }
 </style>
 """, unsafe_allow_html=True)
 
-# 初期化
 db.init_db()
 if "updating" not in st.session_state:
     st.session_state.updating = False
 if "adding" not in st.session_state:
     st.session_state.adding = False
 
-# ヘッダー
 st.markdown("<div style='background:#E63946;color:white;padding:8px;text-align:center;font-weight:600;'>PokeCard Asset</div>", unsafe_allow_html=True)
 
-# ボタン
 col1, col2 = st.columns([4, 1])
 with col1:
     if st.button("最新相場に更新", type="primary", use_container_width=True, key="update_btn"):
@@ -44,36 +40,43 @@ if st.session_state.updating:
     progress = st.progress(0, text="更新中...")
     for i, h in enumerate(holdings):
         if h.get("snkrdunk_id"):
-            prices = scraper.fetch_prices_with_fallback(h["snkrdunk_id"], h.get("morimori_url"))
-            db.update_prices(h["id"], prices.get("snkrdunk"), prices.get("morimori"))
+            prices = scraper.fetch_prices(
+                h["snkrdunk_id"],
+                h.get("morimori_url"),
+                h.get("mobile_ichiban_url"),
+            )
+            db.update_prices(
+                h["id"],
+                prices.get("snkrdunk"),
+                prices.get("morimori"),
+                img_url=prices.get("snkrdunk_image"),
+                pack_name=prices.get("snkrdunk_name"),
+            )
         progress.progress((i + 1) / max(len(holdings), 1))
-    
-    # スナップショット自動保存
+
     updated = db.get_all_holdings()
     t_s = sum((h.get("snkrdunk_price", 0) or 0) * h["qty"] for h in updated)
     t_m = sum((h.get("morimori_price", 0) or 0) * h["qty"] for h in updated if h.get("shrink"))
     db.save_snapshot(t_s, t_m)
-    
+
     st.session_state.updating = False
     st.rerun()
 
-# サマリー計算
 holdings = db.get_all_holdings()
 total_snkr = sum((h.get("snkrdunk_price", 0) or 0) * h["qty"] for h in holdings)
 total_mori = sum((h.get("morimori_price", 0) or 0) * h["qty"] for h in holdings if h.get("shrink"))
 
-# 前回差・累計増減計算
 snapshots = db.get_snapshots(limit=2)
 prev_diff_snkr = 0
 first_diff_snkr = 0
 
 if len(snapshots) >= 2:
-    prev_snkr = snapshots[1].get("snkrdunk_total", 0)
+    prev_snkr = snapshots[1].get("total_snkrdunk", 0)
     prev_diff_snkr = total_snkr - prev_snkr
 
-if snapshots:
-    first_snkr = snapshots[-1].get("snkrdunk_total", 0)
-    first_diff_snkr = total_snkr - first_snkr
+first = db.get_first_snapshot()
+if first:
+    first_diff_snkr = total_snkr - first.get("total_snkrdunk", 0)
 
 def fmt(amount):
     return f"¥{amount:,}" if amount else "¥0"
@@ -85,7 +88,6 @@ def diff_str(amount):
         return fmt(amount)
     return "¥0"
 
-# サマリー表示
 st.markdown(f"""
 <div style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:white;padding:16px;border-radius:16px;margin:10px;">
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
@@ -111,7 +113,6 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# BOX一覧
 st.markdown("<div style='margin:0 12px;font-size:11px;color:#666;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;'>保有BOX一覧</div>", unsafe_allow_html=True)
 
 if holdings:
@@ -120,8 +121,7 @@ if holdings:
         mori_price = h.get("morimori_price") or 0
         qty = h["qty"]
         shrink = h.get("shrink", False)
-        
-        # パック名分割
+
         pack_name = h["pack_name"]
         if "「" in pack_name and "」" in pack_name:
             prefix = pack_name.split("「")[0].strip()
@@ -129,11 +129,10 @@ if holdings:
             display_name = f"{prefix} {main_name}"
         else:
             display_name = pack_name
-        
-        # BOXカード表示
+
         with st.container():
             col_main, col_ops = st.columns([5, 1])
-            
+
             with col_main:
                 st.markdown(f"""
                 <div style="background:white;border:0.5px solid #e5e7eb;border-radius:12px;padding:12px;margin:4px 0;">
@@ -159,24 +158,20 @@ if holdings:
                   </div>
                 </div>
                 """, unsafe_allow_html=True)
-            
+
             with col_ops:
-                # 数量変更
                 new_qty = st.number_input("数量", min_value=1, max_value=99, value=qty, key=f"qty_{h['id']}", label_visibility="collapsed")
                 if new_qty != qty:
                     db.update_qty(h["id"], new_qty)
                     st.rerun()
-                
-                # 削除ボタン
+
                 if st.button("🗑", key=f"del_{h['id']}", help="削除"):
                     db.delete_holding(h["id"])
                     st.rerun()
 
-# BOX追加ボタン
 if st.button("＋ BOXを追加する", use_container_width=True, key="add_btn"):
     st.session_state.adding = True
 
-# BOX追加フロー
 if st.session_state.adding:
     if "selected_pack" not in st.session_state:
         st.session_state.selected_pack = None
@@ -184,9 +179,9 @@ if st.session_state.adding:
     if st.session_state.selected_pack is None:
         st.markdown("**パックを選択**")
         search = st.text_input("検索", placeholder="パック名で検索")
-        
+
         filtered = [p for p in PACKS if not search or search.lower() in p["name"].lower()][:20]
-        
+
         for pack in filtered:
             col_img, col_info, col_btn = st.columns([1, 4, 1])
             with col_img:
@@ -197,13 +192,12 @@ if st.session_state.adding:
                 if st.button("選択", key=f"select_{pack['id']}"):
                     st.session_state.selected_pack = pack
                     st.rerun()
-        
+
         if st.button("キャンセル"):
             st.session_state.adding = False
             st.rerun()
-    
+
     else:
-        # シュリンク選択
         pack = st.session_state.selected_pack
         col_img, col_info = st.columns([1, 4])
         with col_img:
@@ -212,7 +206,7 @@ if st.session_state.adding:
             st.markdown(f"**{pack['name']}**  \n{pack['released_at']}")
 
         shrink_fixed = pack.get("shrink_fixed")
-        
+
         if shrink_fixed is True:
             st.success("📦 シュリンク有で登録")
             has_shrink = True
