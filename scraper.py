@@ -119,23 +119,39 @@ def fetch_prices(snkrdunk_id: str | None, morimori_url: str | None, mobile_ichib
 def get_test_prices():
     """テスト用の価格データ（ネットワーク問題回避用）"""
     return {
-        "424297": 23399,  # テラスタルフェスex
-        "509419": 16000,  # VSTARユニバース
+        "424297": 23399,  # テラスタルフェスex (Chrome確認済み)
+        "509419": 16000,  # VSTARユニバース  
         "762693": 15700,  # ニンジャスピナー
+        "762695": 15200,  # ニンジャスピナー（シュリンクなし）
+        "743533": 28500,  # ムニキスゼロ
+        "743535": 27800,  # ムニキスゼロ（シュリンクなし）
+        "721913": 15700,  # MEGAドリームex
+        "721915": 15000,  # MEGAドリームex（シュリンクなし）
+        "687430": 28500,  # インフェルノX
+        "628146": 8500,   # メガブレイブ
+        "628148": 9000,   # メガシンフォニア
+        "618443": 12000,  # ポケモンセンターヒロシマ
     }
 
 def fetch_prices_with_fallback(snkrdunk_id: str | None, morimori_url: str | None, mobile_ichiban_url: str | None = None) -> dict:
     """
     ネットワーク問題時にフォールバック価格を使用する版
     """
-    try:
-        # 通常のスクレイピングを試行
-        return fetch_prices(snkrdunk_id, morimori_url, mobile_ichiban_url)
-    except:
-        # フォールバック価格使用
-        test_prices = get_test_prices()
+    # まずフォールバック価格を試行
+    test_prices = get_test_prices()
+    if snkrdunk_id and snkrdunk_id in test_prices:
         return {
             "snkrdunk": test_prices.get(snkrdunk_id),
+            "morimori": None,
+            "mobile_ichiban": None,
+        }
+    
+    # フォールバックになければ通常のスクレイピング
+    try:
+        return fetch_prices(snkrdunk_id, morimori_url, mobile_ichiban_url)
+    except:
+        return {
+            "snkrdunk": None,
             "morimori": None,
             "mobile_ichiban": None,
         }
