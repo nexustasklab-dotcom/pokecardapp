@@ -13,7 +13,6 @@ def get_conn() -> sqlite3.Connection:
 
 
 def init_db():
-    """初回起動時にテーブルを作成する。"""
     with get_conn() as conn:
         conn.executescript("""
         CREATE TABLE IF NOT EXISTS holdings (
@@ -42,9 +41,7 @@ def init_db():
         """)
 
 
-# ─── holdings CRUD ────────────────────────────────────────────────
-
-def add_holding(pack_id: int, pack_name: str, img_url: str, shrink: bool,
+def add_holding(pack_id, pack_name: str, img_url: str, shrink: bool,
                 snkrdunk_id: str | None, morimori_url: str | None,
                 mobile_ichiban_url: str | None = None) -> int:
     with get_conn() as conn:
@@ -53,9 +50,7 @@ def add_holding(pack_id: int, pack_name: str, img_url: str, shrink: bool,
             (pack_id, int(shrink))
         ).fetchone()
         if existing:
-            conn.execute(
-                "UPDATE holdings SET qty=qty+1 WHERE id=?", (existing["id"],)
-            )
+            conn.execute("UPDATE holdings SET qty=qty+1 WHERE id=?", (existing["id"],))
             return existing["id"]
         cur = conn.execute(
             """INSERT INTO holdings
@@ -68,9 +63,7 @@ def add_holding(pack_id: int, pack_name: str, img_url: str, shrink: bool,
 
 def get_all_holdings() -> list[dict]:
     with get_conn() as conn:
-        rows = conn.execute(
-            "SELECT * FROM holdings ORDER BY created_at DESC"
-        ).fetchall()
+        rows = conn.execute("SELECT * FROM holdings ORDER BY created_at DESC").fetchall()
         return [dict(r) for r in rows]
 
 
@@ -79,14 +72,15 @@ def update_qty(holding_id: int, qty: int):
         conn.execute("UPDATE holdings SET qty=? WHERE id=?", (qty, holding_id))
 
 
+def rename_holding(holding_id: int, pack_name: str):
+    with get_conn() as conn:
+        conn.execute("UPDATE holdings SET pack_name=? WHERE id=?", (pack_name, holding_id))
+
+
 def update_prices(holding_id: int, snkrdunk_price: int | None,
                   morimori_price: int | None,
                   img_url: str | None = None,
                   pack_name: str | None = None):
-    """
-    価格を更新する。img_url / pack_name が渡されたら一緒に上書きする。
-    （スニダンから取得した正しい画像と商品名で更新する用途）
-    """
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with get_conn() as conn:
         if img_url and pack_name:
@@ -116,8 +110,6 @@ def delete_holding(holding_id: int):
     with get_conn() as conn:
         conn.execute("DELETE FROM holdings WHERE id=?", (holding_id,))
 
-
-# ─── snapshots ─────────────────────────────────────────────────────
 
 def save_snapshot(total_snkrdunk: int, total_morimori: int):
     with get_conn() as conn:
